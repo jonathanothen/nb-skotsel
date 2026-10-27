@@ -8,7 +8,7 @@ import { useRegister, QUEEN_ACTIVE } from '../register';
 const PHASES = [
 	[ 0, 'Grund och egna listor', 'Klar' ],
 	[ 1, 'Bigårdar, kupor, samhällen och drottningar', 'Klar' ],
-	[ 2, 'Lager och material', '' ],
+	[ 2, 'Lager och material', 'Klar' ],
 	[ 3, 'Skötselkort och besök', '' ],
 	[ 4, 'Driftplan och uppgifter', '' ],
 	[ 5, 'Bihälsa och foder', '' ],
@@ -63,10 +63,10 @@ export default function Overview() {
 						<ol className="nbs-phases">
 							{ PHASES.map( ( [ n, label ] ) => {
 								return (
-									<li key={ n } className={ n <= 1 ? 'is-done' : '' }>
+									<li key={ n } className={ n <= 2 ? 'is-done' : '' }>
 										<span className="nbs-phase-n">{ n }</span>
 										<span>{ label }</span>
-										{ n <= 1 && <span className="nbs-badge is-ok">Klar</span> }
+										{ n <= 2 && <span className="nbs-badge is-ok">Klar</span> }
 									</li>
 								);
 							} ) }

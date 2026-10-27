@@ -3,7 +3,8 @@ import { api, uuid } from '../api';
 import { href, go } from '../router';
 import { useMe } from '../App';
 import { useRegister, COLONY_ACTIVE, COLONY_STATUS, QUEEN_STATUS, QUEEN_ACTIVE, MATING, label, today, fmtDate } from '../register';
-import { Loading, ErrorBox, Button, Modal, Empty, useToast } from '../ui';
+import { useLoad, Loading, ErrorBox, Button, Modal, Empty, useToast } from '../ui';
+import { useStock, StockModal, TxTable, Contents, consumption, fmtQty, fmtKr, unit } from '../stock';
 import { FieldInput } from '../fields';
 import { EntityForm, FieldsModal, History, QueenBadge, StatusBadge, CustomValues, DateNote } from '../reg-ui';
 
@@ -204,6 +205,8 @@ function ColonyDetail( { id } ) {
 				</section>
 			</div>
 
+			<ColonyMaterial c={ c } />
+
 			<History filter={ { colony_id: id } } ctx="colony" stamp={ c.updated_at + c.queen_id + c.apiary_id + c.status } />
 
 			{ op === 'edit' && <EntityForm type="colony" item={ c } onClose={ ( deleted ) => ( close(), deleted && go( 'samhallen' ) ) } /> }
@@ -214,6 +217,64 @@ function ColonyDetail( { id } ) {
 			{ op === 'merge' && <MergeModal c={ c } onClose={ close } /> }
 			{ op === 'close' && <CloseModal c={ c } onClose={ close } /> }
 		</div>
+	);
+}
+
+/* ------------------------------------------------------------------ Material */
+
+/** Det som finns i samhällets kupa, årets förbrukning och kostnad, och bokning härifrån. */
+function ColonyMaterial( { c } ) {
+	const reg = useRegister();
+	const me = useMe();
+	const [ stock, , reloadStock ] = useStock();
+	const [ tx, , reloadTx ] = useLoad( () => api( 'stock/tx?colony_id=' + c.id ), [ c.id ] );
+	const [ dialog, setDialog ] = useState( null );
+	if ( ! stock || ! tx ) {
+		return null;
+	}
+	const year = today().slice( 0, 4 );
+	const { by, cost } = consumption( tx.filter( ( t ) => t.date.startsWith( year ) ) );
+	const hiveLoc = c.hive_id ? { type: 'hive', id: c.hive_id } : null;
+	const refresh = () => {
+		reloadStock();
+		reloadTx();
+	};
+	const active = COLONY_ACTIVE.includes( c.status );
+	return (
+		<section className="nbs-card nbs-history">
+			<div className="nbs-card-head">
+				<h2 className="nbs-h2">Material</h2>
+				{ me.can.write && active && (
+					<div className="nbs-row-actions">
+						{ hiveLoc && <Button small variant="ghost" onClick={ () => setDialog( { mode: 'move', preset: { to: hiveLoc } } ) }>Till kupan</Button> }
+						<Button small onClick={ () => setDialog( { mode: 'consume', preset: { colony_id: c.id } } ) }>Förbruka</Button>
+					</div>
+				) }
+			</div>
+			<div className="nbs-grid nbs-grid-tight">
+				<div>
+					<h3 className="nbs-h3">I kupan{ reg.hive[ c.hive_id ] ? ' ' + reg.hive[ c.hive_id ].label : '' }</h3>
+					{ hiveLoc ? <Contents stock={ stock } loc={ hiveLoc } empty="Inga delar registrerade i kupan." /> : <p className="nbs-muted">Samhället har ingen kupa kopplad.</p> }
+				</div>
+				<div>
+					<h3 className="nbs-h3">Förbrukat { year }{ cost > 0 && ` · ${ fmtKr( cost ) }` }</h3>
+					{ Object.keys( by ).length ? (
+						<ul className="nbs-contents">
+							{ Object.entries( by ).map( ( [ itemId, v ] ) => (
+								<li key={ itemId }><strong>{ fmtQty( v.qty ) } { unit( stock.item[ itemId ] ) }</strong> { stock.item[ itemId ] ? stock.item[ itemId ].name : '(borttagen)' }{ v.cost > 0 && <span className="nbs-muted"> · { fmtKr( v.cost ) }</span> }</li>
+							) ) }
+						</ul>
+					) : <p className="nbs-muted">Ingen förbrukning i år.</p> }
+				</div>
+			</div>
+			{ tx.length > 0 && (
+				<details className="nbs-details">
+					<summary>Alla rörelser ({ tx.length })</summary>
+					<TxTable tx={ tx } stock={ stock } hide={ [ 'colony' ] } onChanged={ refresh } />
+				</details>
+			) }
+			{ dialog && <StockModal stock={ stock } mode={ dialog.mode } preset={ dialog.preset } onClose={ () => setDialog( null ) } onDone={ refresh } /> }
+		</section>
 	);
 }
 
@@ -490,6 +551,9 @@ function Hives() {
 	const [ series, setSeries ] = useState( false );
 	const [ fieldsOpen, setFieldsOpen ] = useState( false );
 	const [ showAll, setShowAll ] = useState( false );
+	const [ stock ] = useStock();
+	// Kupans delar enligt lagret: "2 × Låda 9 ramar, 1 × Botten".
+	const parts = ( h ) => ( stock ? stock.inLoc( { type: 'hive', id: h.id } ).map( ( b ) => `${ fmtQty( b.qty ) } × ${ stock.item[ b.item_id ] ? stock.item[ b.item_id ].name : '?' }` ).join( ', ' ) : '' );
 	const user = {};
 	reg.activeColonies.forEach( ( c ) => c.hive_id && ( user[ c.hive_id ] = c ) );
 	const list = reg.hives.filter( ( h ) => showAll || h.active ).sort( ( a, b ) => a.label.localeCompare( b.label, 'sv', { numeric: true } ) );
@@ -500,7 +564,7 @@ function Hives() {
 			<header className="nbs-page-head">
 				<div>
 					<h1 className="nbs-h1">Kupor</h1>
-					<p className="nbs-muted">{ reg.hives.filter( ( h ) => h.active ).length } kupor i bruk · { free } lediga. Kupornas delar (lådor, bottnar, ramar) kopplas till lagret i fas 2.</p>
+					<p className="nbs-muted">{ reg.hives.filter( ( h ) => h.active ).length } kupor i bruk · { free } lediga. Kupornas delar bokas från lagret (Lager → Uttag/flytt till kupa).</p>
 				</div>
 				<div className="nbs-row-actions">
 					{ me.can.manage && <Button variant="ghost" onClick={ () => setFieldsOpen( true ) }>Egna fält</Button> }
@@ -521,7 +585,7 @@ function Hives() {
 					) }
 					<div className="nbs-table-wrap">
 						<table className="nbs-table">
-							<thead><tr><th>Kupa</th><th>Kupsystem</th><th>Samhälle</th><th>Bigård</th></tr></thead>
+							<thead><tr><th>Kupa</th><th>Kupsystem</th><th>Samhälle</th><th>Bigård</th><th>Delar</th></tr></thead>
 							<tbody>
 								{ list.map( ( h ) => {
 									const c = user[ h.id ];
@@ -531,6 +595,7 @@ function Hives() {
 											<td data-label="Kupsystem">{ reg.itemName( h.system_id ) || '–' }</td>
 											<td data-label="Samhälle">{ c ? <a href={ href( 'samhallen/' + c.id ) }>{ c.code }</a> : <span className="nbs-muted">Ledig</span> }</td>
 											<td data-label="Bigård">{ c && reg.apiary[ c.apiary_id ] ? reg.apiary[ c.apiary_id ].name : '–' }</td>
+											<td data-label="Delar" className="nbs-parts">{ parts( h ) || <span className="nbs-muted">–</span> }</td>
 										</tr>
 									);
 								} ) }

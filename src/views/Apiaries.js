@@ -6,6 +6,9 @@ import { useRegister, COLONY_ACTIVE, COLONY_STATUS, label, fmtDate } from '../re
 import { Loading, ErrorBox, Button, Empty, useToast } from '../ui';
 import { EntityForm, FieldsModal, History, Fill, QueenBadge, StatusBadge, CustomValues } from '../reg-ui';
 import MapView from '../MapView';
+import RoutePlanner from './RoutePlanner';
+import { googleTo, appleTo } from '../geo';
+import { useStock, StockModal, Contents } from '../stock';
 
 /** "8 produktion · 2 avläggare" */
 export function statusSummary( colonies ) {
@@ -14,13 +17,16 @@ export function statusSummary( colonies ) {
 	return COLONY_STATUS.filter( ( s ) => n[ s[ 0 ] ] ).map( ( s ) => `${ n[ s[ 0 ] ] } ${ s[ 1 ].toLowerCase() }` ).join( ' · ' );
 }
 
-export default function Apiaries( { id } ) {
+export default function Apiaries( { id, sub } ) {
 	const reg = useRegister();
 	if ( reg.error ) {
 		return <div className="nbs-page"><ErrorBox error={ reg.error } /></div>;
 	}
 	if ( reg.loading ) {
 		return <Loading />;
+	}
+	if ( id === 'rutt' ) {
+		return <RoutePlanner routeId={ sub } />;
 	}
 	return id ? <ApiaryDetail key={ id } id={ id } /> : <ApiaryList />;
 }
@@ -75,6 +81,7 @@ function ApiaryList() {
 				</div>
 				<div className="nbs-row-actions">
 					{ me.can.manage && <Button variant="ghost" onClick={ () => setFieldsOpen( true ) }>Egna fält</Button> }
+					{ reg.apiaries.length > 0 && <a className="nbs-btn is-ghost" href={ href( 'bigardar/rutt' ) }>Planera körning</a> }
 					{ me.can.write && <Button onClick={ () => setEditing( {} ) }>+ Ny bigård</Button> }
 				</div>
 			</header>
@@ -105,7 +112,7 @@ function ApiaryList() {
 
 					{ groups.map( ( [ route, list ] ) => (
 						<section key={ route || 'none' } className="nbs-group">
-							<h2 className="nbs-h3">{ route ? reg.itemName( route ) : 'Utan slinga' } <span className="nbs-count">{ list.length }</span></h2>
+							<h2 className="nbs-h3">{ route ? reg.itemName( route ) : 'Utan slinga' } <span className="nbs-count">{ list.length }</span>{ route && <a className="nbs-group-link" href={ href( 'bigardar/rutt/' + route ) }>Planera slingan →</a> }</h2>
 							<div className="nbs-cards">
 								{ list.map( ( a ) => {
 									const cols = reg.coloniesIn( a.id );
@@ -187,12 +194,16 @@ function ApiaryDetail( { id } ) {
 						{ a.registered && <div><dt>Anmäld till Länsstyrelsen</dt><dd>{ fmtDate( a.registered ) }</dd></div> }
 						{ a.code && <div><dt>Kod</dt><dd>{ a.code }</dd></div> }
 						{ a.location && <div><dt>Adress/väg</dt><dd>{ a.location }</dd></div> }
-						{ a.lat !== null && (
-							<div><dt>Position</dt><dd><a href={ `https://www.google.com/maps/dir/?api=1&destination=${ a.lat },${ a.lng }` } target="_blank" rel="noreferrer">Vägbeskrivning</a> · <a href={ `https://www.openstreetmap.org/?mlat=${ a.lat }&mlon=${ a.lng }#map=15/${ a.lat }/${ a.lng }` } target="_blank" rel="noreferrer">Karta</a></dd></div>
-						) }
+						{ a.lat !== null && <div><dt>GPS</dt><dd>{ String( a.lat ).replace( '.', ',' ) }, { String( a.lng ).replace( '.', ',' ) }</dd></div> }
 					</dl>
 					<CustomValues fields={ reg.fields.apiary } data={ a.data } refs={ reg.refs } />
 					{ a.notes && <p className="nbs-notes">{ a.notes }</p> }
+					{ a.lat !== null && (
+						<div className="nbs-row-actions nbs-nav-btns">
+							<a className="nbs-btn is-primary" href={ googleTo( a ) } target="_blank" rel="noopener noreferrer">Vägbeskrivning i Google Maps</a>
+							<a className="nbs-btn is-ghost" href={ appleTo( a, a.name ) } target="_blank" rel="noopener noreferrer">Apple Kartor</a>
+						</div>
+					) }
 				</section>
 				<section className="nbs-card nbs-card-map">
 					{ a.lat !== null ? (
@@ -216,11 +227,38 @@ function ApiaryDetail( { id } ) {
 				) }
 			</section>
 
+			<ApiaryMaterial a={ a } colonies={ active } />
+
 			<History filter={ { apiary_id: id } } ctx="apiary" stamp={ reg.colonies } />
 
 			{ editing && <EntityForm type="apiary" item={ a } onClose={ ( deleted ) => ( setEditing( false ), deleted && go( 'bigardar' ) ) } /> }
 			{ adding && <EntityForm type="colony" preset={ { apiary_id: id } } onClose={ () => setAdding( false ) } /> }
 		</div>
+	);
+}
+
+/** Material som står i bigården och fördelning på bigårdens samhällen. */
+function ApiaryMaterial( { a, colonies } ) {
+	const me = useMe();
+	const [ stock, , reload ] = useStock();
+	const [ dialog, setDialog ] = useState( null );
+	if ( ! stock ) {
+		return null;
+	}
+	return (
+		<section className="nbs-card nbs-history">
+			<div className="nbs-card-head">
+				<h2 className="nbs-h2">Material i bigården</h2>
+				{ me.can.write && (
+					<div className="nbs-row-actions">
+						<Button small variant="ghost" onClick={ () => setDialog( { mode: 'move', preset: { to: { type: 'apiary', id: a.id } } } ) }>Ta hit material</Button>
+						{ colonies.length > 0 && <Button small onClick={ () => setDialog( { mode: 'distribute', preset: { apiary_id: a.id } } ) }>Fördela på samhällena</Button> }
+					</div>
+				) }
+			</div>
+			<Contents stock={ stock } loc={ { type: 'apiary', id: a.id } } empty="Inget material står i bigården. Material i kuporna visas på varje samhälle." />
+			{ dialog && <StockModal stock={ stock } mode={ dialog.mode } preset={ dialog.preset } onClose={ () => setDialog( null ) } onDone={ reload } /> }
+		</section>
 	);
 }
 

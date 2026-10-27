@@ -21,6 +21,7 @@ class NBS_Starter {
 				['key' => 'pris', 'label' => 'Pris per enhet', 'type' => 'number', 'unit' => 'kr', 'min' => 0],
 				['key' => 'min_saldo', 'label' => 'Minsta saldo', 'type' => 'number', 'min' => 0, 'help' => 'Varning när lagret går under detta.'],
 				['key' => 'leverantor', 'label' => 'Leverantör', 'type' => 'text'],
+				['key' => 'behov_per_samhalle', 'label' => 'Behov per samhälle', 'type' => 'number', 'min' => 0, 'help' => 'För behovsberäkningen, t.ex. 7 skattlådor eller 15 kg foder per samhälle.'],
 			]],
 			'ramformat'     => ['Ramformat', 'Ramformat som används i verksamheten.', [
 				['key' => 'matt', 'label' => 'Mått', 'type' => 'text', 'help' => 'T.ex. 448 × 159 mm'],
@@ -56,17 +57,57 @@ class NBS_Starter {
 			'markfarger'    => ['Märkfärger för drottningar', 'Internationell färg efter årtalets sista siffra.', [
 				['key' => 'slutsiffror', 'label' => 'Årtal som slutar på', 'type' => 'text'],
 			]],
+			'lagerplatser'  => ['Lagerplatser', 'Förråd där material lagras, t.ex. centrallagret och honungshuset. Bigårdar och kupor är också lagerplatser, de behöver inte läggas in här.', [
+				['key' => 'beskrivning', 'label' => 'Beskrivning', 'type' => 'textarea'],
+			]],
 		];
 	}
 
-	/** Skapar grundlistor som saknas för organisationen. */
+	/** Fält som har tillkommit i grundlistorna efter att de skapats: [lista => [fältnycklar]]. */
+	const ADDED_FIELDS = [
+		'material' => ['behov_per_samhalle'],
+	];
+
+	/**
+	 * Skapar grundlistor som saknas för organisationen, och lägger till nya fält i
+	 * befintliga grundlistor en gång (tas fältet bort av användaren kommer det inte tillbaka).
+	 */
 	public static function ensure_system_lists($org_id) {
-		$sort = 10;
+		$sort     = 10;
+		$settings = NBS_Auth::org_settings($org_id);
+		$done     = $settings['added_fields'] ?? [];
+		$changed  = false;
 		foreach (self::system_lists() as $key => $def) {
-			if (!NBS_Lists::get_by_key($org_id, $key)) {
+			$list = NBS_Lists::get_by_key($org_id, $key);
+			if (!$list) {
 				NBS_Lists::create($org_id, ['key' => $key, 'name' => $def[0], 'description' => $def[1], 'fields' => $def[2], 'sort' => $sort], 'system');
+			} else {
+				$add = [];
+				foreach (self::ADDED_FIELDS[$key] ?? [] as $fk) {
+					if (empty($done[$key][$fk]) && !in_array($fk, wp_list_pluck($list['fields'], 'key'), true)) {
+						foreach ($def[2] as $fd) {
+							if ($fd['key'] === $fk) {
+								$add[] = $fd;
+							}
+						}
+					}
+				}
+				if ($add) {
+					NBS_Lists::update($org_id, $list['id'], ['fields' => array_merge($list['fields'], $add)]);
+				}
+			}
+			foreach (self::ADDED_FIELDS[$key] ?? [] as $fk) {
+				if (empty($done[$key][$fk])) {
+					$done[$key][$fk] = 1;
+					$changed            = true;
+				}
 			}
 			$sort += 10;
+		}
+		if ($changed) {
+			$settings = NBS_Auth::org_settings($org_id);
+			$settings['added_fields'] = $done;
+			NBS_Auth::save_org_settings($org_id, $settings);
 		}
 	}
 
@@ -145,6 +186,10 @@ class NBS_Starter {
 				['name' => 'Rutin behöver ses över', 'color' => '#D99A2B'],
 				['name' => 'Rutin funkar inte', 'color' => '#C8463D'],
 			],
+			'lagerplatser' => [
+				['name' => 'Centrallager Österbo', 'data' => ['beskrivning' => 'Ladugården, pallstallage och hyllsystem.']],
+				['name' => 'Honungshuset', 'data' => ['beskrivning' => 'Burkar, etiketter och färdig honung.']],
+			],
 			'markfarger'   => [
 				['name' => 'Vit', 'color' => '#F5F5F0', 'data' => ['slutsiffror' => '1, 6']],
 				['name' => 'Gul', 'color' => '#F2C230', 'data' => ['slutsiffror' => '2, 7']],
@@ -162,7 +207,7 @@ class NBS_Starter {
 	public static function import($org_id) {
 		self::ensure_system_lists($org_id);
 		$added = 0;
-		$order = ['ramformat', 'kupsystem', 'material', 'linjer', 'fodertyper', 'behandling', 'bigardstyper', 'slingor', 'kategorier', 'rutinstatus', 'markfarger'];
+		$order = ['ramformat', 'kupsystem', 'material', 'linjer', 'fodertyper', 'behandling', 'bigardstyper', 'slingor', 'kategorier', 'rutinstatus', 'markfarger', 'lagerplatser'];
 		$all   = self::starter_items();
 		foreach ($order as $key) {
 			$list = NBS_Lists::get_by_key($org_id, $key);

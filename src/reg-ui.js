@@ -4,6 +4,7 @@ import { useLoad, Loading, ErrorBox, Button, Modal, useToast } from './ui';
 import { FieldInput, formatValue } from './fields';
 import FieldDefs, { withIds, cleanFields } from './FieldDefs';
 import MapView from './MapView';
+import { parseCoords, isShortLink } from './geo';
 import { useMe } from './App';
 import { useRegister, COLONY_STATUS, QUEEN_STATUS, MATING, COLONY_ACTIVE, label, today, fmtDate } from './register';
 import { href } from './router';
@@ -209,7 +210,9 @@ export function EntityForm( { type, item = {}, preset = {}, onClose, onSaved } )
 					{ fields.map( ( f ) =>
 						f.key === '_map' ? (
 							<div className="nbs-field nbs-span-2" key="_map">
-								<label>Position <span className="nbs-muted">– klicka på kartan</span></label>
+								<label htmlFor="nbs-geo-link">Position (GPS)</label>
+								<GeoInput onFound={ ( p ) => setForm( ( x ) => ( { ...x, ...p } ) ) } />
+								<small className="nbs-help">Klistra in en länk från Google Maps (Dela → Kopiera länk) eller koordinater, använd din position på plats, eller klicka på kartan.</small>
 								<MapView height={ 280 } pick={ { lat: form.lat ?? null, lng: form.lng ?? null } } onPick={ ( p ) => setForm( ( x ) => ( { ...x, ...p } ) ) } points={ reg.apiaries.filter( ( a ) => a.id !== item.id && a.active ).map( ( a ) => ( { id: a.id, lat: a.lat, lng: a.lng, label: a.name, color: '#B8AC98' } ) ) } />
 								<small className="nbs-help">
 									{ form.lat !== null && form.lat !== undefined ? <>{ String( form.lat ).replace( '.', ',' ) }, { String( form.lng ).replace( '.', ',' ) } <button type="button" className="nbs-link-btn" onClick={ () => setForm( ( x ) => ( { ...x, lat: null, lng: null } ) ) }>Ta bort position</button></> : 'Ingen position vald.' }
@@ -237,6 +240,62 @@ export function EntityForm( { type, item = {}, preset = {}, onClose, onSaved } )
 				<button type="submit" hidden />
 			</form>
 		</Modal>
+	);
+}
+
+/** Läser en position ur en Google Maps-länk eller koordinater, eller från telefonens GPS. */
+function GeoInput( { onFound } ) {
+	const [ text, setText ] = useState( '' );
+	const [ msg, setMsg ] = useState( null );
+	const [ busy, setBusy ] = useState( false );
+	const read = async () => {
+		setMsg( null );
+		let p = parseCoords( text );
+		if ( ! p && isShortLink( text ) ) {
+			setBusy( true );
+			try {
+				const r = await api( 'geo/resolve', { method: 'POST', body: { url: text.trim() } } );
+				p = parseCoords( r.url );
+			} catch ( e ) {
+				setMsg( e.message );
+			}
+			setBusy( false );
+		}
+		if ( p ) {
+			onFound( p );
+			setText( '' );
+		} else {
+			setMsg( ( m ) => m || 'Hittade inga koordinater i texten. Prova att högerklicka på platsen i Google Maps och kopiera koordinaterna (t.ex. 60.18, 17.18).' );
+		}
+	};
+	const gps = () => {
+		setMsg( null );
+		if ( ! navigator.geolocation ) {
+			setMsg( 'Webbläsaren kan inte ge din position.' );
+			return;
+		}
+		setBusy( true );
+		navigator.geolocation.getCurrentPosition(
+			( pos ) => {
+				setBusy( false );
+				onFound( { lat: +pos.coords.latitude.toFixed( 6 ), lng: +pos.coords.longitude.toFixed( 6 ) } );
+			},
+			() => {
+				setBusy( false );
+				setMsg( 'Positionen kunde inte hämtas. Tillåt platsåtkomst och försök igen.' );
+			},
+			{ enableHighAccuracy: true, timeout: 15000 }
+		);
+	};
+	return (
+		<>
+			<div className="nbs-inline-form">
+				<input id="nbs-geo-link" type="text" value={ text } onChange={ ( e ) => setText( e.target.value ) } onKeyDown={ ( e ) => e.key === 'Enter' && ( e.preventDefault(), read() ) } placeholder="https://maps.app.goo.gl/… eller 60.18, 17.18" />
+				<Button small variant="ghost" onClick={ read } disabled={ busy || ! text.trim() }>Hämta</Button>
+				<Button small variant="ghost" onClick={ gps } disabled={ busy }>Använd min position</Button>
+			</div>
+			{ msg && <small className="nbs-warn">{ msg }</small> }
+		</>
 	);
 }
 

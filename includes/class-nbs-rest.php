@@ -215,6 +215,36 @@ class NBS_Rest {
 			return ['added' => NBS_Starter::import_apiaries($org())];
 		}, 'can_manage');
 
+		// ---- Lager (fas 2)
+		self::route('/stock', 'GET', function () use ($org) {
+			return NBS_Stock::overview($org());
+		});
+		self::route('/stock/tx', 'GET', function (WP_REST_Request $r) use ($org) {
+			return NBS_Stock::tx_list($org(), $r->get_query_params(), (int) ($r['limit'] ?: 300));
+		});
+		foreach (['purchase', 'move', 'consume', 'distribute', 'count'] as $action) {
+			self::route('/stock/' . $action, 'POST', function (WP_REST_Request $r) use ($org, $action) {
+				$body = $r->get_json_params() ?: [];
+				return self::out(NBS_Ops::tx(function () use ($org, $action, $body) {
+					return call_user_func(['NBS_Stock', $action], $org(), $body);
+				}));
+			}, 'can_write');
+		}
+		self::route('/stock/batch/(?P<id>[0-9a-f-]{36})', 'DELETE', function (WP_REST_Request $r) use ($org) {
+			$id = $r->get_url_params()['id'];
+			return self::out(NBS_Ops::tx(function () use ($org, $id) {
+				return NBS_Stock::undo($org(), $id);
+			}));
+		}, 'can_write');
+		self::route('/stock/rebuild', 'POST', function () use ($org) {
+			return self::out(NBS_Ops::tx(function () use ($org) {
+				return NBS_Stock::rebuild($org());
+			}));
+		}, 'can_manage');
+
+		// ---- Kortlänkar från Google Maps (maps.app.goo.gl) → slutadress med koordinater.
+		self::route('/geo/resolve', 'POST', [__CLASS__, 'resolve_map_link'], 'can_write');
+
 		// ---- Ändringslogg
 		self::route('/audit', 'GET', function (WP_REST_Request $r) use ($org) {
 			global $wpdb;
@@ -274,11 +304,44 @@ class NBS_Rest {
 			global $wpdb;
 			$o   = $org();
 			$out = ['exported_at' => gmdate('c'), 'version' => NBS_VERSION, 'org' => NBS_Auth::current()];
-			foreach (['lists', 'list_items', 'apiaries', 'hives', 'colonies', 'queens', 'events'] as $t) {
+			foreach (['lists', 'list_items', 'apiaries', 'hives', 'colonies', 'queens', 'events', 'stock_tx', 'stock'] as $t) {
 				$out[$t] = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . NBS_DB::table($t) . ' WHERE org_id = %s', $o), ARRAY_A);
 			}
 			return $out;
 		}, 'can_manage');
+	}
+
+	/**
+	 * Följer omdirigeringarna för en delningslänk från Google Maps och returnerar den
+	 * slutliga adressen (som innehåller koordinaterna). Bara Googles egna värdar tillåts,
+	 * så att funktionen inte kan användas för att anropa andra adresser.
+	 */
+	public static function resolve_map_link(WP_REST_Request $r) {
+		$url     = esc_url_raw(trim((string) $r['url']));
+		$allowed = '/^(maps\.app\.goo\.gl|goo\.gl|(www\.|maps\.)?google\.[a-z.]{2,6})$/i';
+		for ($i = 0; $i < 6; $i++) {
+			$host = wp_parse_url($url, PHP_URL_HOST);
+			if (!$host || !preg_match($allowed, $host) || wp_parse_url($url, PHP_URL_SCHEME) !== 'https') {
+				return new WP_Error('nbs_url', 'Det går bara att läsa länkar från Google Maps.', ['status' => 400]);
+			}
+			if (preg_match('/@-?\d+\.\d+,-?\d+\.\d+|!3d-?\d+\.\d+|[?&](q|query|ll)=-?\d+\.\d+/', rawurldecode($url))) {
+				return ['url' => $url];
+			}
+			$res = wp_safe_remote_get($url, ['redirection' => 0, 'timeout' => 8, 'user-agent' => 'Mozilla/5.0 (compatible; NordiskaBin)']);
+			if (is_wp_error($res)) {
+				return new WP_Error('nbs_url', 'Länken kunde inte läsas.', ['status' => 400]);
+			}
+			$next = wp_remote_retrieve_header($res, 'location');
+			if (!$next) {
+				// Sista sidan: leta efter koordinater i innehållet.
+				if (preg_match('/@(-?\d+\.\d+),(-?\d+\.\d+)/', (string) wp_remote_retrieve_body($res), $m)) {
+					return ['url' => 'https://www.google.com/maps/@' . $m[1] . ',' . $m[2]];
+				}
+				return ['url' => $url];
+			}
+			$url = is_array($next) ? end($next) : $next;
+		}
+		return ['url' => $url];
 	}
 
 	/** Lägger till en befintlig WP-användare (e-post) i organisationen och ger rollen Biodlare. */

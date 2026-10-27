@@ -8,6 +8,7 @@ import Settings from './views/Settings';
 import Apiaries from './views/Apiaries';
 import Colonies from './views/Colonies';
 import Queens from './views/Queens';
+import Stock from './views/Stock';
 import { RegisterProvider } from './register';
 
 export const MeCtx = createContext( null );
@@ -19,10 +20,10 @@ export const MODULES = [
 	{ key: 'bigardar', label: 'Bigårdar', icon: '⌂' },
 	{ key: 'samhallen', label: 'Samhällen', icon: '⬡' },
 	{ key: 'drottningar', label: 'Drottningar', short: 'Drottn.', icon: '♛' },
-	{ key: 'lager', label: 'Lager', icon: '▤', phase: 2 },
+	{ key: 'lager', label: 'Lager', icon: '▤' },
 	{ key: 'besok', label: 'Besök', icon: '✓', phase: 3 },
 	{ key: 'driftplan', label: 'Driftplan', icon: '▦', phase: 4 },
-	{ key: 'listor', label: 'Listor', icon: '☰' },
+	{ key: 'listor', label: 'Listor', icon: '☰', desktopOnly: true },
 	{ key: 'installningar', label: 'Inställningar', short: 'Mer', icon: '⚙' },
 ];
 
@@ -51,9 +52,11 @@ function Shell() {
 	const current = MODULES.find( ( m ) => m.key === ( route[ 0 ] || '' ) ) || MODULES[ 0 ];
 	let page;
 	if ( current.key === 'bigardar' ) {
-		page = <Apiaries id={ route[ 1 ] } />;
+		page = <Apiaries id={ route[ 1 ] } sub={ route[ 2 ] } />;
 	} else if ( current.key === 'samhallen' ) {
 		page = <Colonies id={ route[ 1 ] } />;
+	} else if ( current.key === 'lager' ) {
+		page = <Stock route={ route.slice( 1 ) } />;
 	} else if ( current.key === 'drottningar' ) {
 		page = <Queens id={ route[ 1 ] } />;
 	} else if ( current.key === 'listor' ) {
@@ -82,7 +85,7 @@ function Shell() {
 				</header>
 				<nav className="nbs-nav" aria-label="Huvudmeny">
 					{ MODULES.map( ( m ) => (
-						<a key={ m.key || 'home' } href={ href( m.key ) } className={ `nbs-nav-item${ m === current ? ' is-active' : '' }${ m.phase ? ' is-coming' : '' }` } aria-current={ m === current ? 'page' : undefined } aria-label={ m.label }>
+						<a key={ m.key || 'home' } href={ href( m.key ) } className={ `nbs-nav-item${ m === current ? ' is-active' : '' }${ m.phase ? ' is-coming' : '' }${ m.desktopOnly ? ' is-desktop-only' : '' }` } aria-current={ m === current ? 'page' : undefined } aria-label={ m.label }>
 							<span className="nbs-nav-icon" aria-hidden="true">{ m.icon }</span>
 							<span className="nbs-nav-label">{ m.label }</span>
 							<span className="nbs-nav-short" aria-hidden="true">{ m.short || m.label }</span>

@@ -8,8 +8,9 @@ const HOME = [ 60.18, 17.18 ];
 /**
  * Karta med OpenStreetMap. points = [{ id, lat, lng, color, label, sub }].
  * Med onPick blir kartan en positionsväljare: klick sätter markören.
+ * Punkter med n (t.ex. 1, 2, S, M) ritas som numrerade nålar; line = [[lat, lng]…] ritar en körväg.
  */
-export default function MapView( { points = [], onOpen, pick, onPick, height = 420 } ) {
+export default function MapView( { points = [], onOpen, pick, onPick, line, height = 420 } ) {
 	const el = useRef();
 	const map = useRef();
 	const layer = useRef();
@@ -40,7 +41,9 @@ export default function MapView( { points = [], onOpen, pick, onPick, height = 4
 		g.clearLayers();
 		const placed = points.filter( ( p ) => p.lat !== null && p.lng !== null && p.lat !== undefined );
 		placed.forEach( ( p ) => {
-			const m = L.circleMarker( [ p.lat, p.lng ], { radius: 9, color: '#2B2620', weight: 1.5, fillColor: p.color || '#D99A2B', fillOpacity: 0.95 } ).addTo( g );
+			const m = p.n !== undefined
+				? L.marker( [ p.lat, p.lng ], { icon: L.divIcon( { className: 'nbs-pin', html: `<span style="background:${ p.color || '#3B2A1A' }">${ String( p.n ).replace( /[<>&]/g, '' ) }</span>`, iconSize: [ 28, 28 ], iconAnchor: [ 14, 14 ] } ) } ).addTo( g )
+				: L.circleMarker( [ p.lat, p.lng ], { radius: 9, color: '#2B2620', weight: 1.5, fillColor: p.color || '#D99A2B', fillOpacity: 0.95 } ).addTo( g );
 			const tip = document.createElement( 'div' );
 			const b = document.createElement( 'strong' );
 			b.textContent = p.label;
@@ -57,6 +60,9 @@ export default function MapView( { points = [], onOpen, pick, onPick, height = 4
 		if ( pick && pick.lat !== null && pick.lat !== undefined ) {
 			L.circleMarker( [ pick.lat, pick.lng ], { radius: 10, color: '#2B2620', weight: 2, fillColor: '#D99A2B', fillOpacity: 1 } ).addTo( g );
 		}
+		if ( line && line.length > 1 ) {
+			L.polyline( line, { color: '#A8741A', weight: 5, opacity: 0.85 } ).addTo( g );
+		}
 		const all = placed.map( ( p ) => [ p.lat, p.lng ] );
 		if ( pick && pick.lat !== null && pick.lat !== undefined ) {
 			all.push( [ pick.lat, pick.lng ] );
@@ -67,7 +73,7 @@ export default function MapView( { points = [], onOpen, pick, onPick, height = 4
 			map.current.setView( all[ 0 ], Math.max( map.current.getZoom(), 12 ) );
 		}
 		// Jämför innehållet, inte arrayen, så att kartan inte zoomar om vid varje omritning.
-	}, [ JSON.stringify( points ), pick && pick.lat, pick && pick.lng ] ); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [ JSON.stringify( points ), pick && pick.lat, pick && pick.lng, line && line.length ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
 	return <div ref={ el } className="nbs-map" style={ { height } } />;
 }

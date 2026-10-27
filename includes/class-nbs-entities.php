@@ -489,6 +489,12 @@ class NBS_Entities {
 			return new WP_Error('nbs_404', 'Posten finns inte.', ['status' => 404]);
 		}
 		$colonies = self::table('colony');
+		if (in_array($type, ['apiary', 'hive'], true)) {
+			$left = (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . NBS_DB::table('stock') . ' WHERE org_id = %s AND loc_type = %s AND loc_id = %s AND qty > 0.0005', $org_id, $type, $id));
+			if ($left) {
+				return new WP_Error('nbs_in_use', sprintf('Det finns %d artiklar i lager här. Flytta tillbaka materialet till lagret först.', $left), ['status' => 400]);
+			}
+		}
 		if ($type === 'apiary') {
 			$n = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $colonies WHERE org_id = %s AND apiary_id = %s", $org_id, $id)); // phpcs:ignore
 			if ($n) {

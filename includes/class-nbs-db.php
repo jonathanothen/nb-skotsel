@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
  */
 class NBS_DB {
 
-	const DB_VERSION = '2';
+	const DB_VERSION = '3';
 
 	public static function table($name) {
 		global $wpdb;
@@ -148,6 +148,47 @@ $cols			data longtext NULL,
 			KEY queen (org_id,queen_id,event_date),
 			KEY apiary (org_id,apiary_id,event_date),
 			KEY from_id (org_id,from_id)
+		) $c;");
+
+		// ---- Fas 2: lager. Varje rörelse är en rad i stock_tx (från plats → till plats);
+		// stock är saldot per artikel och plats, som uppdateras i samma transaktion.
+		$tx = self::table('stock_tx');
+		dbDelta("CREATE TABLE $tx (
+			id char(36) NOT NULL,
+			org_id char(36) NOT NULL,
+			batch_id char(36) NOT NULL,
+			tx_date date NOT NULL,
+			type varchar(16) NOT NULL,
+			item_id char(36) NOT NULL,
+			qty decimal(14,3) NOT NULL,
+			unit_price decimal(12,2) NULL,
+			from_type varchar(8) NULL,
+			from_id char(36) NULL,
+			to_type varchar(8) NULL,
+			to_id char(36) NULL,
+			colony_id char(36) NULL,
+			apiary_id char(36) NULL,
+			note text NULL,
+			created_at datetime NOT NULL,
+			created_by bigint(20) unsigned NULL,
+			PRIMARY KEY  (id),
+			KEY item (org_id,item_id,tx_date),
+			KEY colony (org_id,colony_id),
+			KEY apiary (org_id,apiary_id),
+			KEY batch (org_id,batch_id),
+			KEY tx_date (org_id,tx_date)
+		) $c;");
+
+		$stock = self::table('stock');
+		dbDelta("CREATE TABLE $stock (
+			org_id char(36) NOT NULL,
+			item_id char(36) NOT NULL,
+			loc_type varchar(8) NOT NULL,
+			loc_id char(36) NOT NULL,
+			qty decimal(14,3) NOT NULL DEFAULT 0,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (org_id,item_id,loc_type,loc_id),
+			KEY loc (org_id,loc_type,loc_id)
 		) $c;");
 
 		update_option('nbs_db_version', self::DB_VERSION);
