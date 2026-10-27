@@ -295,12 +295,12 @@ class NBS_Lists {
 		$l = self::t('lists');
 		$i = self::t('list_items');
 		$rows = $wpdb->get_results($wpdb->prepare(
-			"SELECT l.list_key, i.id, i.name, i.active FROM $i i JOIN $l l ON l.id = i.list_id WHERE i.org_id = %s ORDER BY i.sort, i.name",
+			"SELECT l.list_key, i.id, i.name, i.color, i.active FROM $i i JOIN $l l ON l.id = i.list_id WHERE i.org_id = %s ORDER BY i.sort, i.name",
 			$org_id
 		), ARRAY_A);
 		$out = [];
 		foreach ($rows as $r) {
-			$out[$r['list_key']][] = ['id' => $r['id'], 'name' => $r['name'], 'active' => (bool) $r['active']];
+			$out[$r['list_key']][] = ['id' => $r['id'], 'name' => $r['name'], 'color' => $r['color'], 'active' => (bool) $r['active']];
 		}
 		return $out;
 	}

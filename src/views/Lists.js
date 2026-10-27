@@ -2,7 +2,8 @@ import { useState, useMemo } from '@wordpress/element';
 import { api, uuid } from '../api';
 import { href, go } from '../router';
 import { useLoad, Loading, ErrorBox, Button, Modal, Empty, useToast } from '../ui';
-import { FieldInput, formatValue, FIELD_TYPES, typeLabel } from '../fields';
+import { FieldInput, formatValue, typeLabel } from '../fields';
+import FieldDefs, { withIds, cleanFields } from '../FieldDefs';
 import { useMe } from '../App';
 
 /* ------------------------------------------------------------------ Listöversikt */
@@ -339,21 +340,9 @@ function ListEditor( { list, lists, onClose, onSaved, onDeleted } ) {
 	const isNew = ! list;
 	const [ name, setName ] = useState( list ? list.name : '' );
 	const [ description, setDescription ] = useState( list ? list.description : '' );
-	const [ fields, setFields ] = useState( () => ( list ? list.fields.map( ( f ) => ( { ...f, _id: uuid() } ) ) : [] ) );
+	const [ fields, setFields ] = useState( () => withIds( list ? list.fields : [] ) );
 	const [ busy, setBusy ] = useState( false );
 	const [ err, setErr ] = useState( null );
-
-	const upd = ( i, patch ) => setFields( ( fs ) => fs.map( ( f, j ) => ( j === i ? { ...f, ...patch } : f ) ) );
-	const move = ( i, d ) =>
-		setFields( ( fs ) => {
-			const a = [ ...fs ];
-			const j = i + d;
-			if ( j < 0 || j >= a.length ) {
-				return a;
-			}
-			[ a[ i ], a[ j ] ] = [ a[ j ], a[ i ] ];
-			return a;
-		} );
 
 	const save = async () => {
 		setBusy( true );
@@ -361,10 +350,7 @@ function ListEditor( { list, lists, onClose, onSaved, onDeleted } ) {
 		const body = {
 			name,
 			description,
-			fields: fields.map( ( { _id, optionsText, ...f } ) => ( {
-				...f,
-				options: optionsText !== undefined ? optionsText.split( ',' ).map( ( s ) => s.trim() ).filter( Boolean ) : f.options,
-			} ) ),
+			fields: cleanFields( fields ),
 		};
 		try {
 			const saved = isNew ? await api( 'lists', { method: 'POST', body: { ...body, id: uuid() } } ) : await api( 'lists/' + list.id, { method: 'PUT', body } );
@@ -425,56 +411,7 @@ function ListEditor( { list, lists, onClose, onSaved, onDeleted } ) {
 				<h3 className="nbs-h3">Fält</h3>
 				<p className="nbs-muted">Alla poster har namn, kod, färg och aktiv/inaktiv. Lägg till de extra uppgifter som listan behöver. Typen "Koppling till annan lista" gör att en post pekar på en post i en annan lista, t.ex. ett material som hör till ett ramformat.</p>
 
-				{ fields.map( ( f, i ) => (
-					<div className="nbs-field-def" key={ f._id }>
-						<div className="nbs-form-row">
-							<div className="nbs-field">
-								<label>Etikett</label>
-								<input type="text" value={ f.label } onChange={ ( e ) => upd( i, { label: e.target.value } ) } placeholder="T.ex. Pris" />
-							</div>
-							<div className="nbs-field">
-								<label>Typ</label>
-								<select value={ f.type } onChange={ ( e ) => upd( i, { type: e.target.value } ) }>
-									{ FIELD_TYPES.map( ( [ k, l ] ) => <option key={ k } value={ k }>{ l }</option> ) }
-								</select>
-							</div>
-						</div>
-						{ ( f.type === 'select' || f.type === 'multiselect' ) && (
-							<div className="nbs-field">
-								<label>Alternativ (separera med komma)</label>
-								<input type="text" value={ f.optionsText !== undefined ? f.optionsText : ( f.options || [] ).join( ', ' ) } onChange={ ( e ) => upd( i, { optionsText: e.target.value } ) } placeholder="Liten, Mellan, Stor" />
-							</div>
-						) }
-						{ f.type === 'ref' && (
-							<div className="nbs-field">
-								<label>Kopplas till listan</label>
-								<select value={ f.ref || '' } onChange={ ( e ) => upd( i, { ref: e.target.value } ) }>
-									<option value="">– Välj lista –</option>
-									{ refLists.map( ( l ) => <option key={ l.id } value={ l.key }>{ l.name }</option> ) }
-								</select>
-							</div>
-						) }
-						{ f.type === 'number' && (
-							<div className="nbs-form-row">
-								<div className="nbs-field"><label>Enhet</label><input type="text" value={ f.unit || '' } onChange={ ( e ) => upd( i, { unit: e.target.value } ) } placeholder="kg, kr, %" /></div>
-								<div className="nbs-field"><label>Min</label><input type="number" value={ f.min ?? '' } onChange={ ( e ) => upd( i, { min: e.target.value } ) } /></div>
-								<div className="nbs-field"><label>Max</label><input type="number" value={ f.max ?? '' } onChange={ ( e ) => upd( i, { max: e.target.value } ) } /></div>
-							</div>
-						) }
-						<div className="nbs-field">
-							<label>Hjälptext</label>
-							<input type="text" value={ f.help || '' } onChange={ ( e ) => upd( i, { help: e.target.value } ) } />
-						</div>
-						<div className="nbs-field-def-actions">
-							<label className="nbs-inline-check"><input type="checkbox" checked={ !! f.required } onChange={ ( e ) => upd( i, { required: e.target.checked } ) } /> Obligatoriskt</label>
-							<span className="nbs-spacer" />
-							<button type="button" className="nbs-icon-btn" onClick={ () => move( i, -1 ) } disabled={ i === 0 } aria-label="Flytta upp">↑</button>
-							<button type="button" className="nbs-icon-btn" onClick={ () => move( i, 1 ) } disabled={ i === fields.length - 1 } aria-label="Flytta ned">↓</button>
-							<Button variant="danger-link" small onClick={ () => setFields( ( fs ) => fs.filter( ( _, j ) => j !== i ) ) }>Ta bort fält</Button>
-						</div>
-					</div>
-				) ) }
-				<Button variant="ghost" onClick={ () => setFields( ( fs ) => [ ...fs, { _id: uuid(), label: '', type: 'text' } ] ) }>+ Lägg till fält</Button>
+				<FieldDefs fields={ fields } setFields={ setFields } refLists={ refLists } />
 				{ ! isNew && fields.length < list.fields.length && <p className="nbs-warn">Värden i borttagna fält försvinner från posterna nästa gång de sparas.</p> }
 			</div>
 		</Modal>

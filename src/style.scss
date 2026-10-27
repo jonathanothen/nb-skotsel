@@ -75,6 +75,7 @@ body.nbs-body {
 	&.is-coming { opacity: .55; }
 }
 .nbs-nav-icon { width: 20px; text-align: center; color: $honey-dark; }
+.nbs-nav-short { display: none; }
 .nbs-nav-item.is-active .nbs-nav-icon { color: $honey; }
 
 .nbs-main { grid-area: main; min-width: 0; }
@@ -210,7 +211,9 @@ li.is-done .nbs-phase-n { background: $green; color: #fff; }
 		position: sticky; bottom: 0; top: auto; height: auto; flex-direction: row; overflow-x: auto; padding: 6px; gap: 4px;
 		border-right: 0; border-top: 1px solid $line; z-index: 20;
 	}
-	.nbs-nav-item { flex-direction: column; gap: 2px; padding: 6px 10px; font-size: 11px; min-width: 68px; text-align: center; flex: 1; }
+	.nbs-nav-item { flex-direction: column; gap: 2px; padding: 6px 2px; font-size: 11px; min-width: 52px; text-align: center; flex: 1 1 0; }
+	.nbs-nav-label { display: none; }
+	.nbs-nav-short { display: block; white-space: nowrap; }
 	.nbs-nav-item.is-coming { display: none; } // Moduler som inte är byggda tar inte plats i mobilmenyn.
 	.nbs-nav-icon { font-size: 18px; }
 	.nbs-page { padding: 18px 16px 40px; }
@@ -231,3 +234,91 @@ li.is-done .nbs-phase-n { background: $green; color: #fff; }
 	.nbs-modal-backdrop { padding: 0; align-items: flex-end; }
 	.nbs-modal { border-radius: 18px 18px 0 0; max-height: 94vh; }
 }
+
+// ---- Fas 1: register (bigårdar, samhällen, drottningar, kupor)
+
+.nbs-map { width: 100%; border-radius: 14px; border: 1px solid $line; overflow: hidden; z-index: 0; background: $sand-2; }
+.nbs-map-note { margin: 6px 2px 0; font-size: 13px; }
+.nbs-card-map { padding: 0; overflow: hidden; display: flex; .nbs-map { border: 0; border-radius: 0; height: 100% !important; min-height: 240px; } .nbs-empty { margin: auto; border: 0; } }
+.leaflet-container { font: inherit; }
+
+.nbs-group { margin-top: 22px; .nbs-h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; } }
+.nbs-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.nbs-apiary-card {
+	--nbs-accent: #{$honey};
+	display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 14px 18px;
+	background: #fff; border: 1px solid $line; border-radius: 14px; text-decoration: none; color: $text !important;
+	box-shadow: inset 5px 0 0 var(--nbs-accent); transition: transform .12s, box-shadow .12s;
+	&:hover, &:focus-visible { transform: translateY(-1px); box-shadow: inset 5px 0 0 var(--nbs-accent), 0 4px 14px rgba(59,42,26,.08); }
+	&.is-inactive { opacity: .55; }
+	.nbs-badge { align-self: flex-start; margin: 0; }
+}
+.nbs-apiary-type { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: $honey-dark; }
+.nbs-apiary-name { font-family: 'Fraunces', Georgia, serif; font-weight: 500; font-size: 19px; color: $brown; line-height: 1.2; }
+.nbs-apiary-sum { font-size: 13px; }
+
+.nbs-fill { display: inline-flex; align-items: center; gap: 8px; }
+.nbs-fill-bar { width: 110px; height: 8px; border-radius: 999px; background: $sand-2; overflow: hidden; display: inline-block;
+	span { display: block; height: 100%; background: $honey; border-radius: 999px; &.is-over { background: $red; } } }
+.nbs-fill-text { font-size: 13px; font-variant-numeric: tabular-nums; color: $brown; }
+
+.nbs-dl { display: grid; gap: 6px; margin: 0 0 10px;
+	> div { display: grid; grid-template-columns: minmax(110px, 38%) 1fr; gap: 10px; padding: 4px 0; border-bottom: 1px dashed $sand; }
+	dt { color: $text; opacity: .8; font-size: 14px; }
+	dd { margin: 0; color: $brown; font-weight: 500; } }
+.nbs-notes { white-space: pre-wrap; background: $cream; border-radius: 10px; padding: 10px 12px; margin: 8px 0 0; font-size: 14px; }
+
+.nbs-status { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: $sand-2; color: $brown; vertical-align: middle; white-space: nowrap;
+	&.is-produktion, &.is-parad { background: #F6E3BC; color: #7A5410; }
+	&.is-avlaggare { background: #DDE8D3; color: #3A5A2C; }
+	&.is-samuel { background: #E3DDF0; color: #4D3A7A; }
+	&.is-parning, &.is-oparad { background: #DCE7F2; color: #2E527A; }
+	&.is-dod, &.is-forsvunnen { background: #F3D9D6; color: $red; }
+	&.is-sald, &.is-sammanslagen, &.is-ersatt { background: #ECE7E0; color: #6E6A64; } }
+.nbs-h1 .nbs-status { font-family: 'DM Sans', system-ui, sans-serif; font-size: 13px; margin-left: 6px; }
+
+.nbs-queen { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.nbs-qdot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.25); display: inline-block; flex: none; }
+
+.nbs-subtabs { display: flex; gap: 4px; border-bottom: 1px solid $line; margin: 4px 0 14px;
+	a { padding: 8px 14px; text-decoration: none; color: $text !important; border-bottom: 3px solid transparent; font-weight: 600; margin-bottom: -1px;
+		&.is-active { color: $brown !important; border-color: $honey; } } }
+
+.nbs-ops { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 6px; }
+
+.nbs-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; > div > .nbs-field, > .nbs-field { margin-bottom: 12px; } }
+.nbs-span-2 { grid-column: 1 / -1; }
+.nbs-historic { background: $sand-2; border-radius: 10px; padding: 10px 12px; }
+.nbs-subform { background: $cream; border: 1px solid $sand; border-radius: 12px; padding: 12px 14px 2px; }
+.nbs-radios { border: 0; padding: 0; margin: 4px 0 12px; display: grid; gap: 6px;
+	legend { font-weight: 600; color: $brown; margin-bottom: 4px; padding: 0; }
+	label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } }
+
+.nbs-history { margin-top: 18px; }
+.nbs-note-form { display: flex; gap: 8px; margin: 6px 0 14px; flex-wrap: wrap;
+	input[type="text"] { flex: 1 1 220px; }
+	input { padding: 7px 10px; border: 1px solid $line; border-radius: 8px; background: #fff; } }
+.nbs-timeline { list-style: none; margin: 0; padding: 0 0 0 4px;
+	li { display: grid; grid-template-columns: 82px 1fr; gap: 12px; padding: 8px 0 8px; border-left: 2px solid $sand; padding-left: 14px; position: relative;
+		&::before { content: ''; position: absolute; left: -6px; top: 13px; width: 10px; height: 10px; border-radius: 50%; background: $honey; border: 2px solid #fff; }
+		&.is-anteckning::before { background: $sand; }
+		&.is-avslutad::before, &.is-drottning_ut::before { background: $red; }
+		&.is-flytt::before, &.is-bildad::before, &.is-delning::before { background: $green; } } }
+.nbs-tl-date { font-size: 13px; font-variant-numeric: tabular-nums; color: $text; padding-top: 1px; }
+.nbs-tl-body { color: $brown; small { display: inline-block; margin-right: 10px; font-size: 12px; } }
+.nbs-tl-note { font-size: 14px; color: $text; font-style: italic; }
+.nbs-tl-del { font-size: 12px; }
+
+.nbs-pedigree { list-style: none; margin: 0 0 10px; padding: 0; li { padding: 6px 0; border-bottom: 1px dashed $sand; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } }
+.nbs-daughters { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.nbs-stats { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+	a { display: block; padding: 10px 12px; background: $cream; border-radius: 12px; text-decoration: none; color: $text !important; }
+	strong { display: block; font-family: 'Fraunces', Georgia, serif; font-weight: 500; font-size: 28px; color: $brown; line-height: 1.1; } }
+
+@media (max-width: 860px) {
+	.nbs-form-grid { grid-template-columns: 1fr; }
+	.nbs-timeline li { grid-template-columns: 1fr; gap: 0; }
+	.nbs-ops .nbs-btn { flex: 1 1 45%; }
+}
+.nbs-queen-year { color: $text; opacity: .75; font-weight: 400; }
+.nbs-toolbar select { padding: 9px 12px; border: 1px solid $line; border-radius: 10px; background: #fff; color: $brown; min-height: 42px; }

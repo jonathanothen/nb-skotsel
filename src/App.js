@@ -5,21 +5,25 @@ import { ToastProvider, useLoad, Loading, ErrorBox } from './ui';
 import Overview from './views/Overview';
 import Lists from './views/Lists';
 import Settings from './views/Settings';
+import Apiaries from './views/Apiaries';
+import Colonies from './views/Colonies';
+import Queens from './views/Queens';
+import { RegisterProvider } from './register';
 
 export const MeCtx = createContext( null );
 export const useMe = () => useContext( MeCtx );
 
 /** Moduler i menyn. De som inte är byggda än visas som "kommer". */
 export const MODULES = [
-	{ key: '', label: 'Översikt', icon: '◎' },
-	{ key: 'bigardar', label: 'Bigårdar', icon: '⌂', phase: 1 },
-	{ key: 'samhallen', label: 'Samhällen', icon: '⬡', phase: 1 },
-	{ key: 'drottningar', label: 'Drottningar', icon: '♛', phase: 1 },
+	{ key: '', label: 'Översikt', short: 'Hem', icon: '◎' },
+	{ key: 'bigardar', label: 'Bigårdar', icon: '⌂' },
+	{ key: 'samhallen', label: 'Samhällen', icon: '⬡' },
+	{ key: 'drottningar', label: 'Drottningar', short: 'Drottn.', icon: '♛' },
 	{ key: 'lager', label: 'Lager', icon: '▤', phase: 2 },
 	{ key: 'besok', label: 'Besök', icon: '✓', phase: 3 },
 	{ key: 'driftplan', label: 'Driftplan', icon: '▦', phase: 4 },
 	{ key: 'listor', label: 'Listor', icon: '☰' },
-	{ key: 'installningar', label: 'Inställningar', icon: '⚙' },
+	{ key: 'installningar', label: 'Inställningar', short: 'Mer', icon: '⚙' },
 ];
 
 function Coming( { mod } ) {
@@ -46,7 +50,13 @@ function Shell() {
 	}
 	const current = MODULES.find( ( m ) => m.key === ( route[ 0 ] || '' ) ) || MODULES[ 0 ];
 	let page;
-	if ( current.key === 'listor' ) {
+	if ( current.key === 'bigardar' ) {
+		page = <Apiaries id={ route[ 1 ] } />;
+	} else if ( current.key === 'samhallen' ) {
+		page = <Colonies id={ route[ 1 ] } />;
+	} else if ( current.key === 'drottningar' ) {
+		page = <Queens id={ route[ 1 ] } />;
+	} else if ( current.key === 'listor' ) {
 		page = <Lists listId={ route[ 1 ] } />;
 	} else if ( current.key === 'installningar' ) {
 		page = <Settings tab={ route[ 1 ] } />;
@@ -57,6 +67,7 @@ function Shell() {
 	}
 	return (
 		<MeCtx.Provider value={ me }>
+			<RegisterProvider>
 			<div className={ `nbs-app${ config.base === 'admin' ? ' is-admin' : '' }` }>
 				<header className="nbs-top">
 					<a className="nbs-brand" href={ href( '' ) }>
@@ -71,14 +82,16 @@ function Shell() {
 				</header>
 				<nav className="nbs-nav" aria-label="Huvudmeny">
 					{ MODULES.map( ( m ) => (
-						<a key={ m.key || 'home' } href={ href( m.key ) } className={ `nbs-nav-item${ m === current ? ' is-active' : '' }${ m.phase ? ' is-coming' : '' }` } aria-current={ m === current ? 'page' : undefined }>
+						<a key={ m.key || 'home' } href={ href( m.key ) } className={ `nbs-nav-item${ m === current ? ' is-active' : '' }${ m.phase ? ' is-coming' : '' }` } aria-current={ m === current ? 'page' : undefined } aria-label={ m.label }>
 							<span className="nbs-nav-icon" aria-hidden="true">{ m.icon }</span>
 							<span className="nbs-nav-label">{ m.label }</span>
+							<span className="nbs-nav-short" aria-hidden="true">{ m.short || m.label }</span>
 						</a>
 					) ) }
 				</nav>
 				<main className="nbs-main">{ page }</main>
 			</div>
+			</RegisterProvider>
 		</MeCtx.Provider>
 	);
 }

@@ -102,6 +102,119 @@ class NBS_Rest {
 			return ['added' => NBS_Starter::import($org())];
 		}, 'can_manage');
 
+		// ---- Register (fas 1): bigårdar, kupor, samhällen, drottningar
+		self::route('/register', 'GET', function () use ($org) {
+			NBS_Starter::ensure_system_lists($org());
+			return NBS_Entities::register($org());
+		});
+		$types = ['apiaries' => 'apiary', 'hives' => 'hive', 'colonies' => 'colony', 'queens' => 'queen'];
+		foreach ($types as $path => $type) {
+			self::route("/$path", 'POST', function (WP_REST_Request $r) use ($org, $type) {
+				$body = $r->get_json_params() ?: [];
+				return self::out(NBS_Ops::tx(function () use ($org, $type, $body) {
+					return NBS_Entities::save($org(), $type, $body, null, ['date' => $body['date'] ?? null]);
+				}));
+			}, 'can_write');
+			self::route("/$path/(?P<id>[0-9a-f-]{36})", 'GET', function (WP_REST_Request $r) use ($org, $type) {
+				$row = NBS_Entities::get($org(), $type, $r->get_url_params()['id']);
+				return $row ?: new WP_Error('nbs_404', 'Posten finns inte.', ['status' => 404]);
+			});
+			self::route("/$path/(?P<id>[0-9a-f-]{36})", 'PUT', function (WP_REST_Request $r) use ($org, $type) {
+				$body = $r->get_json_params() ?: [];
+				$id   = $r->get_url_params()['id'];
+				return self::out(NBS_Ops::tx(function () use ($org, $type, $body, $id) {
+					return NBS_Entities::save($org(), $type, $body, $id, ['date' => $body['date'] ?? null]);
+				}));
+			}, 'can_write');
+			self::route("/$path/(?P<id>[0-9a-f-]{36})", 'DELETE', function (WP_REST_Request $r) use ($org, $type) {
+				$id = $r->get_url_params()['id'];
+				return self::out(NBS_Ops::tx(function () use ($org, $type, $id) {
+					return NBS_Entities::delete($org(), $type, $id);
+				}));
+			}, 'can_manage');
+		}
+		self::route('/fields/(?P<type>apiary|hive|colony|queen)', 'PUT', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Entities::save_fields($org(), $r->get_url_params()['type'], (array) ($r['fields'] ?? [])));
+		}, 'can_manage');
+		self::route('/next-code/(?P<type>hive|colony|queen)', 'GET', function (WP_REST_Request $r) use ($org) {
+			return ['code' => NBS_Ops::next_code($org(), $r->get_url_params()['type'])];
+		});
+
+		// ---- Operationer på samhällen (skriver historik)
+		$op = function ($name, $cb) use ($org) {
+			self::route('/colonies/(?P<id>[0-9a-f-]{36})/' . $name, 'POST', function (WP_REST_Request $r) use ($org, $cb) {
+				$b    = $r->get_json_params() ?: [];
+				$id   = $r->get_url_params()['id'];
+				$date = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($b['date'] ?? '')) ? $b['date'] : current_time('Y-m-d');
+				$note = sanitize_textarea_field((string) ($b['note'] ?? ''));
+				return self::out(NBS_Ops::tx(function () use ($org, $cb, $id, $b, $date, $note) {
+					return $cb($org(), $id, $b, $date, $note);
+				}));
+			}, 'can_write');
+		};
+		$op('move', function ($o, $id, $b, $date, $note) {
+			return NBS_Ops::move($o, $id, $b['apiary_id'] ?? null, $date, $note);
+		});
+		$op('hive', function ($o, $id, $b, $date, $note) {
+			return NBS_Ops::change_hive($o, $id, $b['hive_id'] ?? null, $date, $note);
+		});
+		$op('queen', function ($o, $id, $b, $date, $note) {
+			$queen = $b['queen_id'] ?? null;
+			if (!empty($b['new_queen'])) {
+				$q = NBS_Ops::new_queen($o, (array) $b['new_queen'], $date);
+				if (is_wp_error($q)) {
+					return $q;
+				}
+				$queen = $q['id'];
+			}
+			return NBS_Ops::set_queen($o, $id, $queen, $date, $b['old_status'] ?? 'ersatt', $note);
+		});
+		$op('split', function ($o, $id, $b, $date, $note) {
+			return NBS_Ops::split($o, $id, $b, $date, $note);
+		});
+		$op('merge', function ($o, $id, $b, $date, $note) {
+			return NBS_Ops::merge($o, $id, $b['into_id'] ?? '', $b['keep'] ?? 'into', $b['other_status'] ?? 'ersatt', $date, $note);
+		});
+		$op('close', function ($o, $id, $b, $date, $note) {
+			return NBS_Ops::close($o, $id, $b['status'] ?? '', $b['queen_status'] ?? '', $date, $note);
+		});
+		$op('status', function ($o, $id, $b, $date, $note) {
+			return NBS_Ops::set_status($o, $id, $b['status'] ?? '', $date, $note);
+		});
+
+		// ---- Historik
+		self::route('/events', 'GET', function (WP_REST_Request $r) use ($org) {
+			$f = [];
+			foreach (['colony_id', 'queen_id', 'apiary_id'] as $k) {
+				if (NBS_Repo::is_uuid($r[$k])) {
+					$f[$k] = $r[$k];
+				}
+			}
+			return $f ? NBS_Events::query($org(), $f, (int) ($r['limit'] ?: 300)) : new WP_Error('nbs_filter', 'Ange samhälle, drottning eller bigård.', ['status' => 400]);
+		});
+		self::route('/events', 'POST', function (WP_REST_Request $r) use ($org) {
+			$b    = $r->get_json_params() ?: [];
+			$note = trim(sanitize_textarea_field((string) ($b['note'] ?? '')));
+			if ($note === '') {
+				return new WP_Error('nbs_note', 'Skriv en anteckning.', ['status' => 400]);
+			}
+			$refs = ['id' => $b['id'] ?? null];
+			foreach (['colony_id', 'queen_id', 'apiary_id'] as $k) {
+				$refs[$k] = NBS_Repo::is_uuid($b[$k] ?? '') ? strtolower($b[$k]) : null;
+			}
+			if (!$refs['colony_id'] && !$refs['queen_id'] && !$refs['apiary_id']) {
+				return new WP_Error('nbs_filter', 'Anteckningen måste höra till något.', ['status' => 400]);
+			}
+			NBS_Events::add($org(), 'anteckning', $refs, $b['date'] ?? null, $note);
+			return ['ok' => true];
+		}, 'can_write');
+		self::route('/events/(?P<id>[0-9a-f-]{36})', 'DELETE', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Events::delete($org(), $r->get_url_params()['id']));
+		}, 'can_write');
+		self::route('/starter/apiaries', 'POST', function () use ($org) {
+			return ['added' => NBS_Starter::import_apiaries($org())];
+		}, 'can_manage');
+
 		// ---- Ändringslogg
 		self::route('/audit', 'GET', function (WP_REST_Request $r) use ($org) {
 			global $wpdb;
@@ -161,7 +274,7 @@ class NBS_Rest {
 			global $wpdb;
 			$o   = $org();
 			$out = ['exported_at' => gmdate('c'), 'version' => NBS_VERSION, 'org' => NBS_Auth::current()];
-			foreach (['lists', 'list_items'] as $t) {
+			foreach (['lists', 'list_items', 'apiaries', 'hives', 'colonies', 'queens', 'events'] as $t) {
 				$out[$t] = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . NBS_DB::table($t) . ' WHERE org_id = %s', $o), ARRAY_A);
 			}
 			return $out;

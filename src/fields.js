@@ -14,6 +14,9 @@ export const FIELD_TYPES = [
 	[ 'url', 'Länk' ],
 ];
 
+/** Alternativ kan vara strängar eller [värde, etikett]. */
+const opt = ( o ) => ( Array.isArray( o ) ? o : [ o, o ] );
+
 export const typeLabel = ( t ) => ( FIELD_TYPES.find( ( x ) => x[ 0 ] === t ) || [ t, t ] )[ 1 ];
 
 export function formatValue( field, value, refs ) {
@@ -25,6 +28,10 @@ export function formatValue( field, value, refs ) {
 			return value ? 'Ja' : 'Nej';
 		case 'number':
 			return String( value ).replace( '.', ',' ) + ( field.unit ? ' ' + field.unit : '' );
+		case 'select': {
+			const hit = ( field.options || [] ).map( opt ).find( ( o ) => o[ 0 ] === value );
+			return hit ? hit[ 1 ] : String( value );
+		}
 		case 'multiselect':
 			return ( value || [] ).join( ', ' );
 		case 'ref': {
@@ -57,8 +64,8 @@ export function FieldInput( { field, value, onChange, refs } ) {
 		case 'select':
 			input = (
 				<select { ...common } value={ value || '' } onChange={ ( e ) => onChange( e.target.value ) }>
-					<option value="">– Välj –</option>
-					{ ( field.options || [] ).map( ( o ) => <option key={ o } value={ o }>{ o }</option> ) }
+					{ ! field.noEmpty && <option value="">– Välj –</option> }
+					{ ( field.options || [] ).map( opt ).map( ( [ v, l ] ) => <option key={ v } value={ v }>{ l }</option> ) }
 				</select>
 			);
 			break;

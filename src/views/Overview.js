@@ -3,10 +3,11 @@ import { href } from '../router';
 import { useLoad, Loading, ErrorBox, Button, useToast } from '../ui';
 import { useMe } from '../App';
 import { useState } from '@wordpress/element';
+import { useRegister, QUEEN_ACTIVE } from '../register';
 
 const PHASES = [
 	[ 0, 'Grund och egna listor', 'Klar' ],
-	[ 1, 'Bigårdar, kupor, samhällen och drottningar', '' ],
+	[ 1, 'Bigårdar, kupor, samhällen och drottningar', 'Klar' ],
 	[ 2, 'Lager och material', '' ],
 	[ 3, 'Skötselkort och besök', '' ],
 	[ 4, 'Driftplan och uppgifter', '' ],
@@ -44,6 +45,7 @@ export default function Overview() {
 			{ ! lists && ! error && <Loading /> }
 			{ lists && (
 				<div className="nbs-grid">
+					<RegisterCard />
 					<section className="nbs-card">
 						<h2 className="nbs-h2">Dina listor</h2>
 						<p>{ filled } av { lists.length } listor har innehåll. Listorna är grunden för resten av systemet: material, kuptyper, linjer, foder, behandlingar, kategorier och egna listor med egna fält.</p>
@@ -61,10 +63,10 @@ export default function Overview() {
 						<ol className="nbs-phases">
 							{ PHASES.map( ( [ n, label ] ) => {
 								return (
-									<li key={ n } className={ n === 0 ? 'is-done' : '' }>
+									<li key={ n } className={ n <= 1 ? 'is-done' : '' }>
 										<span className="nbs-phase-n">{ n }</span>
 										<span>{ label }</span>
-										{ n === 0 && <span className="nbs-badge is-ok">Klar</span> }
+										{ n <= 1 && <span className="nbs-badge is-ok">Klar</span> }
 									</li>
 								);
 							} ) }
@@ -73,5 +75,28 @@ export default function Overview() {
 				</div>
 			) }
 		</div>
+	);
+}
+
+function RegisterCard() {
+	const reg = useRegister();
+	if ( reg.loading || reg.error ) {
+		return null;
+	}
+	const active = reg.apiaries.filter( ( a ) => a.active );
+	const queenless = reg.activeColonies.filter( ( c ) => ! c.queen_id ).length;
+	const queens = reg.queens.filter( ( q ) => QUEEN_ACTIVE.includes( q.status ) ).length;
+	return (
+		<section className="nbs-card">
+			<h2 className="nbs-h2">Biodlingen just nu</h2>
+			<ul className="nbs-stats">
+				<li><a href={ href( 'bigardar' ) }><strong>{ active.length }</strong> bigårdar</a></li>
+				<li><a href={ href( 'samhallen' ) }><strong>{ reg.activeColonies.length }</strong> samhällen</a></li>
+				<li><a href={ href( 'drottningar' ) }><strong>{ queens }</strong> drottningar</a></li>
+				<li><a href={ href( 'samhallen/kupor' ) }><strong>{ reg.hives.filter( ( h ) => h.active ).length }</strong> kupor</a></li>
+			</ul>
+			{ queenless > 0 && <p className="nbs-warn">{ queenless } { queenless === 1 ? 'samhälle saknar' : 'samhällen saknar' } registrerad drottning.</p> }
+			{ active.length === 0 && <p>Börja med <a href={ href( 'bigardar' ) }>bigårdarna</a> – de 13 platserna från logistikplanen kan hämtas med en knapp.</p> }
+		</section>
 	);
 }

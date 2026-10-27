@@ -44,7 +44,9 @@ class NBS_App {
 	private static function enqueue($base) {
 		$meta = self::asset_meta();
 		wp_enqueue_script('nbs-app', NBS_URL . 'build/index.js', $meta['dependencies'], $meta['version'], true);
-		wp_enqueue_style('nbs-app', NBS_URL . 'build/style-index.css', [], $meta['version']);
+		// index.css = bibliotek som importeras från JS (kartan), style-index.css = appens egna stilar.
+		wp_register_style('nbs-vendor', NBS_URL . 'build/index.css', [], $meta['version']);
+		wp_enqueue_style('nbs-app', NBS_URL . 'build/style-index.css', ['nbs-vendor'], $meta['version']);
 		wp_add_inline_script('nbs-app', 'window.NBS = ' . wp_json_encode([
 			'root'    => esc_url_raw(rest_url('nbs/v1/')),
 			'nonce'   => wp_create_nonce('wp_rest'),

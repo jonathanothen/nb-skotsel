@@ -184,6 +184,54 @@ class NBS_Starter {
 		return $added;
 	}
 
+	/**
+	 * Bigårdarna från logistikplanen (13 platser anmälda till Länsstyrelsen 2026-10-02).
+	 * Typer och slingor skapas i listorna om de saknas. Bigårdar som redan finns (samma
+	 * namn) hoppas över. Position läggs in på kartan i efterhand.
+	 */
+	public static function import_apiaries($org_id) {
+		self::ensure_system_lists($org_id);
+		$item_id = function ($key, $name, $color = null) use ($org_id) {
+			$list = NBS_Lists::get_by_key($org_id, $key);
+			foreach (NBS_Lists::items($org_id, $list['id']) as $it) {
+				if ($it['name'] === $name) {
+					return $it['id'];
+				}
+			}
+			$it = NBS_Lists::save_item($org_id, $list['id'], ['name' => $name, 'color' => $color]);
+			return is_wp_error($it) ? null : $it['id'];
+		};
+		$prod   = $item_id('bigardstyper', 'Produktion', '#D99A2B');
+		$avel   = $item_id('bigardstyper', 'Drottningar och parning', '#8E5BA8');
+		$routes = [
+			'Slinga 1 Söder'    => ['Gäddviken', 'Prästgården', 'Viby säteri', 'Norrsälja'],
+			'Slinga 2 Nordost'  => ['Parningsplatsen', 'Fågelsta syd', 'Fågelsta nord', 'Huggle'],
+			'Slinga 3 Nordväst' => ['Svedänge', 'Gräsbovägen', 'Horsskog', 'Västersälja'],
+		];
+		$rows = [['Österbo vid gården', $prod, null, null, 'Tillfällig uppställning vid gården, t.ex. svärmar innan de flyttas ut. Räknas inte som produktionsbigård.']];
+		foreach ($routes as $route => $names) {
+			$rid = $item_id('slingor', $route);
+			foreach ($names as $name) {
+				$rows[] = $name === 'Parningsplatsen'
+					? [$name, $avel, $rid, null, 'Avelsplats för parning av drottningar. Drönarövertag från produktionsbigårdarna runt omkring.']
+					: [$name, $prod, $rid, 12, ''];
+			}
+		}
+		$existing = wp_list_pluck(NBS_Entities::all($org_id, 'apiary'), 'name');
+		$added    = 0;
+		$sort     = 10;
+		foreach ($rows as $r) {
+			if (!in_array($r[0], $existing, true)) {
+				$res = NBS_Entities::save($org_id, 'apiary', ['name' => $r[0], 'type_id' => $r[1], 'route_id' => $r[2], 'capacity' => $r[3], 'registered' => '2026-10-02', 'active' => 1, 'sort' => $sort, 'notes' => $r[4]]);
+				if (!is_wp_error($res)) {
+					$added++;
+				}
+			}
+			$sort += 10;
+		}
+		return $added;
+	}
+
 	/** Byter "@lista:Namn" mot postens id. */
 	private static function resolve_refs($org_id, $data) {
 		foreach ($data as $k => $v) {

@@ -80,6 +80,18 @@ class NBS_Auth {
 		return $c ? $c['id'] : null;
 	}
 
+	/** Organisationens inställningar (bl.a. egna fält per register). */
+	public static function org_settings($org_id) {
+		global $wpdb;
+		$raw = $wpdb->get_var($wpdb->prepare('SELECT settings FROM ' . NBS_DB::table('orgs') . ' WHERE id = %s', $org_id));
+		return NBS_Repo::unjson($raw);
+	}
+
+	public static function save_org_settings($org_id, $settings) {
+		global $wpdb;
+		$wpdb->update(NBS_DB::table('orgs'), ['settings' => NBS_Repo::json($settings), 'updated_at' => NBS_DB::now()], ['id' => $org_id]);
+	}
+
 	/** Får användaren skriva (medlem eller högre)? */
 	public static function can_write() {
 		$c = self::current();

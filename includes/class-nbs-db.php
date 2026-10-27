@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
  */
 class NBS_DB {
 
-	const DB_VERSION = '1';
+	const DB_VERSION = '2';
 
 	public static function table($name) {
 		global $wpdb;
@@ -101,6 +101,53 @@ class NBS_DB {
 			PRIMARY KEY  (id),
 			KEY entity (entity,entity_id),
 			KEY org_time (org_id,created_at)
+		) $c;");
+
+		// ---- Fas 1: bigårdar, kupor, samhällen, drottningar och deras historik.
+		// Kolumnerna byggs från NBS_Entities så att schema och validering hänger ihop.
+		foreach (NBS_Entities::TYPES as $type => $def) {
+			$t    = self::table($def['table']);
+			$cols = '';
+			foreach ($def['cols'] as $col => $kind) {
+				$cols .= "\t\t\t$col " . NBS_Entities::sql_type($kind) . ",\n";
+			}
+			$keys = '';
+			foreach ($def['index'] ?? [] as $col) {
+				$keys .= ",\n\t\t\tKEY $col (org_id,$col)";
+			}
+			dbDelta("CREATE TABLE $t (
+			id char(36) NOT NULL,
+			org_id char(36) NOT NULL,
+$cols			data longtext NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			created_by bigint(20) unsigned NULL,
+			updated_by bigint(20) unsigned NULL,
+			PRIMARY KEY  (id),
+			KEY org_id (org_id)$keys
+		) $c;");
+		}
+
+		$events = self::table('events');
+		dbDelta("CREATE TABLE $events (
+			id char(36) NOT NULL,
+			org_id char(36) NOT NULL,
+			event_date date NOT NULL,
+			type varchar(24) NOT NULL,
+			colony_id char(36) NULL,
+			queen_id char(36) NULL,
+			apiary_id char(36) NULL,
+			from_id char(36) NULL,
+			other_id char(36) NULL,
+			data longtext NULL,
+			note text NULL,
+			created_at datetime NOT NULL,
+			created_by bigint(20) unsigned NULL,
+			PRIMARY KEY  (id),
+			KEY colony (org_id,colony_id,event_date),
+			KEY queen (org_id,queen_id,event_date),
+			KEY apiary (org_id,apiary_id,event_date),
+			KEY from_id (org_id,from_id)
 		) $c;");
 
 		update_option('nbs_db_version', self::DB_VERSION);
