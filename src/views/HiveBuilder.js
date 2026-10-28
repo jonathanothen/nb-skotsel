@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from '@wordpress/element';
 import { api } from '../api';
 import { useLoad, Loading, ErrorBox, Button, Modal, useToast } from '../ui';
-import { useRegister, today } from '../register';
+import { useRegister, today, COLONY_STATUS, COLONY_ACTIVE } from '../register';
 import { useStock, fmtQty } from '../stock';
 import { useMe } from '../App';
 import { download } from '../xlsx';
 
-const KINDS = { bottom: 'Botten', box: 'Låda', excluder: 'Spärrgaller', roof: 'Tak' };
+const KINDS = { bottom: 'Botten', box: 'Låda', excluder: 'Spärrgaller', board: 'Galler', feeder: 'Foderlåda', roof: 'Tak', accessory: 'Tillbehör', other: 'Kupa' };
 // Ordning nerifrån och upp när en del läggs till.
-const RANK = { bottom: 0, box: 5, excluder: 5, roof: 9 };
+const RANK = { bottom: 0, box: 5, excluder: 5, other: 5, feeder: 7, board: 8, roof: 9, accessory: 10 };
+const kr = ( v ) => ( v || v === 0 ? new Intl.NumberFormat( 'sv-SE', { maximumFractionDigits: 0 } ).format( v ) + ' kr' : '–' );
+const mm = ( p ) => ( p.kind === 'accessory' ? '' : `${ p.outer.join( '×' ) }×${ p.height } mm` );
 const STORE = 'nbs_hivebuilder';
 // Färgval för kupan. Tom = delens egen färg (trä, eller fabrikatets färg).
 const PAINTS = [ [ '', 'Original' ], [ '#fbfbf9', 'Vit' ], [ '#f2c84b', 'Gul' ], [ '#e98a2b', 'Orange' ], [ '#b8433a', 'Röd' ], [ '#3e6fb0', 'Blå' ], [ '#4f8a4c', 'Grön' ], [ '#8d8f93', 'Grå' ] ];
@@ -50,7 +52,10 @@ export default function HiveBuilder() {
 
 	const systems = lib ? lib.systems : [];
 	const sys = systems.find( ( s ) => s.id === system ) || systems[ 0 ];
-	const parts = lib && sys ? lib.parts.filter( ( p ) => p.system === sys.id ) : [];
+	const inSys = ( p ) => sys && ( p.system === sys.id || ( p.alsoFor || [] ).includes( sys.id ) );
+	const parts = lib ? lib.parts.filter( ( p ) => inSys( p ) && p.kind !== 'accessory' ) : [];
+	const extras = lib ? lib.parts.filter( ( p ) => inSys( p ) && p.kind === 'accessory' ) : [];
+	const shop = ( id ) => ( ( lib && lib.retailers ) || [] ).find( ( r ) => r.id === id );
 	const kits = lib && sys ? ( lib.kits || [] ).filter( ( k ) => k.system === sys.id ) : [];
 	const partById = ( id ) => lib && lib.parts.find( ( p ) => p.id === id );
 	const rows = stack.map( ( s ) => ( { ...s, part: partById( s.part ) } ) ).filter( ( s ) => s.part );
@@ -156,7 +161,7 @@ export default function HiveBuilder() {
 	const warnings = [];
 	if ( rows.length ) {
 		// Botten och tak får vara större (bricka, lock); lådor och galler måste ha samma mått.
-		const feet = [ ...new Set( rows.filter( ( r ) => r.part.kind !== 'roof' && r.part.kind !== 'bottom' ).map( ( r ) => r.part.outer.join( '×' ) ) ) ];
+		const feet = [ ...new Set( rows.filter( ( r ) => [ 'box', 'excluder', 'board', 'feeder' ].includes( r.part.kind ) ).map( ( r ) => r.part.outer.join( '×' ) ) ) ];
 		if ( feet.length > 1 ) {
 			warnings.push( `Delarna har olika yttermått (${ feet.join( ', ' ) } mm) och passar inte ihop.` );
 		}
@@ -198,6 +203,7 @@ export default function HiveBuilder() {
 		}
 	} );
 	const bomRows = Object.values( bom );
+	const bomTotal = bomRows.reduce( ( sum, b ) => sum + ( b.price || 0 ) * b.qty, 0 );
 	const height = rows.reduce( ( s, r ) => s + ( r.part.kind === 'roof' ? r.part.top || 20 : r.part.height ) * r.qty, 0 );
 
 	const exportGlb = async () => {
@@ -304,7 +310,7 @@ export default function HiveBuilder() {
 							<span>Börja från standardkupa</span>
 							<select value="" onChange={ ( e ) => e.target.value && openKit( e.target.value ) }>
 								<option value="">Välj…</option>
-								{ kits.map( ( k ) => <option key={ k.id } value={ k.id }>{ k.name }</option> ) }
+								{ kits.map( ( k ) => <option key={ k.id } value={ k.id }>{ k.name }{ k.price ? ` – ${ kr( k.price ) }` : '' }</option> ) }
 							</select>
 						</label>
 					) }
@@ -314,12 +320,32 @@ export default function HiveBuilder() {
 								<span className={ 'nbs-hb-swatch is-' + p.kind } />
 								<span className="nbs-hb-part">
 									<strong>{ p.name }</strong>
-									<small>{ KINDS[ p.kind ] || p.kind } · { p.outer.join( '×' ) }×{ p.height } mm{ p.frames ? ` · ${ p.frames } ramar` : '' }{ p.source === 'standard' ? ' · standardmått' : '' }</small>
+									<small>{ [ KINDS[ p.kind ] || p.kind, mm( p ), p.frames ? `${ p.frames } ramar` : '', p.source === 'standard' ? 'standardmått' : p.source === 'preliminar' ? 'preliminära mått' : '' ].filter( Boolean ).join( ' · ' ) }</small>
+									{ p.price ? <small>{ kr( p.price ) }{ p.url && <> · <a href={ p.url } target="_blank" rel="noopener noreferrer" onClick={ ( e ) => e.stopPropagation() }>{ ( shop( p.retailer ) || { name: 'butiken' } ).name }</a></> }</small> : null }
 								</span>
 								<button type="button" className="nbs-btn is-ghost is-small" onClick={ () => add( p.id ) } aria-label={ 'Lägg till ' + p.name }>+</button>
 							</li>
 						) ) }
 					</ul>
+					{ extras.length > 0 && (
+						<>
+							<h3 className="nbs-h3">Tillbehör</h3>
+							<p className="nbs-muted">Räknas i materiallistan men syns inte i 3D.</p>
+							<ul className="nbs-hb-parts">
+								{ extras.map( ( p ) => (
+							<li key={ p.id } draggable onDragStart={ ( e ) => e.dataTransfer.setData( 'text/plain', 'nbs-part:' + p.id ) }>
+								<span className={ 'nbs-hb-swatch is-' + p.kind } />
+								<span className="nbs-hb-part">
+									<strong>{ p.name }</strong>
+									<small>{ [ KINDS[ p.kind ] || p.kind, mm( p ), p.frames ? `${ p.frames } ramar` : '', p.source === 'standard' ? 'standardmått' : p.source === 'preliminar' ? 'preliminära mått' : '' ].filter( Boolean ).join( ' · ' ) }</small>
+									{ p.price ? <small>{ kr( p.price ) }{ p.url && <> · <a href={ p.url } target="_blank" rel="noopener noreferrer" onClick={ ( e ) => e.stopPropagation() }>{ ( shop( p.retailer ) || { name: 'butiken' } ).name }</a></> }</small> : null }
+								</span>
+								<button type="button" className="nbs-btn is-ghost is-small" onClick={ () => add( p.id ) } aria-label={ 'Lägg till ' + p.name }>+</button>
+							</li>
+						) ) }
+							</ul>
+						</>
+					) }
 				</section>
 
 				<section
@@ -390,9 +416,10 @@ export default function HiveBuilder() {
 					<h3 className="nbs-h3">Materiallista</h3>
 					<label className="nbs-hb-count">Antal kupor <input type="number" min="1" value={ hives } onChange={ ( e ) => setHives( e.target.value ) } /></label>
 					<table className="nbs-table">
-						<thead><tr><th>Del</th><th>Per kupa</th><th>Totalt</th></tr></thead>
+						<thead><tr><th>Del</th><th>Per kupa</th><th>Totalt</th><th>Pris</th></tr></thead>
 						<tbody>
-							{ bomRows.map( ( b ) => <tr key={ b.name }><td>{ b.name }</td><td>{ b.qty }</td><td>{ b.qty * n }</td></tr> ) }
+							{ bomRows.map( ( b ) => <tr key={ b.name }><td>{ b.name }</td><td>{ b.qty }</td><td>{ b.qty * n }</td><td>{ b.price ? kr( b.price * b.qty * n ) : '–' }</td></tr> ) }
+							{ bomTotal > 0 && <tr className="nbs-hb-total"><td colSpan="3">Summa{ bomRows.some( ( b ) => ! b.price ) ? ' (delar utan pris ej medräknade)' : '' }</td><td>{ kr( bomTotal * n ) }</td></tr> }
 						</tbody>
 					</table>
 					<div className="nbs-row-actions">
@@ -439,6 +466,9 @@ function ApplyModal( { type, onClose } ) {
 	const [ buy, setBuy ] = useState( false );
 	const [ keep, setKeep ] = useState( true );
 	const [ date, setDate ] = useState( today() );
+	const [ makeColonies, setMakeColonies ] = useState( false );
+	const [ colStatus, setColStatus ] = useState( 'produktion' );
+	const [ pickedCol, setPickedCol ] = useState( [] );
 	const [ preview, setPreview ] = useState( null );
 	const [ err, setErr ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
@@ -449,8 +479,11 @@ function ApplyModal( { type, onClose } ) {
 	const colonyIn = Object.fromEntries( reg.activeColonies.filter( ( c ) => c.hive_id ).map( ( c ) => [ c.hive_id, c ] ) );
 	const hiveApiary = ( h ) => h.apiary_id || ( colonyIn[ h.id ] && colonyIn[ h.id ].apiary_id ) || '';
 	const hives = reg.hives.filter( ( h ) => h.active && ( ! filter || hiveApiary( h ) === filter ) ).sort( ( a, b ) => String( a.label ).localeCompare( String( b.label ), 'sv', { numeric: true } ) );
-	const body = { type_id: type.id, mode, apiary_id: apiary, count: parseInt( count, 10 ) || 0, hive_ids: picked, store_id: storeId, book, buy, keep_frames: keep, date };
-	const ready = mode === 'new' ? apiary && body.count > 0 : picked.length > 0;
+	const colonies = reg.activeColonies.filter( ( c ) => ! filter || c.apiary_id === filter ).sort( ( a, b ) => String( a.code ).localeCompare( String( b.code ), 'sv', { numeric: true } ) );
+	const body = { type_id: type.id, mode, apiary_id: apiary, count: parseInt( count, 10 ) || 0, colony_status: makeColonies ? colStatus : '', hive_ids: picked, colony_ids: pickedCol, store_id: storeId, book, buy, keep_frames: keep, date };
+	const ready = { new: apiary && body.count > 0, replace: picked.length > 0, colonies: pickedCol.length > 0 }[ mode ];
+	const toggleCol = ( id ) => setPickedCol( ( p ) => ( p.includes( id ) ? p.filter( ( x ) => x !== id ) : [ ...p, id ] ) );
+	const allCol = colonies.length > 0 && colonies.every( ( c ) => pickedCol.includes( c.id ) );
 
 	useEffect( () => {
 		if ( ! ready || ( book && ! storeId ) ) {
@@ -472,7 +505,8 @@ function ApplyModal( { type, onClose } ) {
 		try {
 			const r = await api( 'hivetypes/apply', { method: 'POST', body } );
 			await reg.reload();
-			toast( mode === 'new' ? `${ r.hives.length } kupor lades till (${ r.hives.map( ( h ) => h.label ).join( ', ' ) }).` : `${ r.hives.length } kupor fick kuptypen ${ type.name }.` );
+			const made = r.new_colonies && r.new_colonies.length ? ` Nya samhällen: ${ r.new_colonies.join( ', ' ) }.` : '';
+			toast( mode === 'new' ? `${ r.hives.length } kupor lades till (${ r.hives.map( ( h ) => h.label ).join( ', ' ) }).${ made }` : mode === 'colonies' ? `${ r.hives.length } samhällen har kuptypen ${ type.name }.` : `${ r.hives.length } kupor fick kuptypen ${ type.name }.` );
 			onClose();
 		} catch ( e ) {
 			setErr( e );
@@ -483,10 +517,11 @@ function ApplyModal( { type, onClose } ) {
 	const short = preview && preview.short;
 
 	return (
-		<Modal wide title={ 'Lägg ut kuptyp: ' + type.name } onClose={ onClose } footer={ <><Button variant="ghost" onClick={ onClose }>Avbryt</Button><Button onClick={ run } disabled={ busy || ! ready || ( book && ! storeId ) || ( short && ! buy ) }>{ busy ? 'Sparar…' : mode === 'new' ? `Lägg till ${ body.count || '' } kupor` : `Ersätt ${ picked.length } kupor` }</Button></> }>
+		<Modal wide title={ 'Lägg ut kuptyp: ' + type.name } onClose={ onClose } footer={ <><Button variant="ghost" onClick={ onClose }>Avbryt</Button><Button onClick={ run } disabled={ busy || ! ready || ( book && ! storeId ) || ( short && ! buy ) }>{ busy ? 'Sparar…' : { new: `Lägg till ${ body.count || '' } kupor`, replace: `Ersätt ${ picked.length } kupor`, colonies: `Ge ${ pickedCol.length } samhällen kuptypen` }[ mode ] }</Button></> }>
 			<div className="nbs-seg" role="group" aria-label="Vad ska göras">
 				<button type="button" className={ mode === 'new' ? 'is-active' : '' } aria-pressed={ mode === 'new' } onClick={ () => setMode( 'new' ) }>Nya kupor i en bigård</button>
-				<button type="button" className={ mode === 'replace' ? 'is-active' : '' } aria-pressed={ mode === 'replace' } onClick={ () => setMode( 'replace' ) }>Ersätt befintliga kupor</button>
+				<button type="button" className={ mode === 'colonies' ? 'is-active' : '' } aria-pressed={ mode === 'colonies' } onClick={ () => setMode( 'colonies' ) }>Samhällen</button>
+				<button type="button" className={ mode === 'replace' ? 'is-active' : '' } aria-pressed={ mode === 'replace' } onClick={ () => setMode( 'replace' ) }>Ersätt kupor</button>
 			</div>
 
 			{ mode === 'new' && (
@@ -503,6 +538,47 @@ function ApplyModal( { type, onClose } ) {
 						<input id="nbs-ap-count" type="number" min="1" max="200" value={ count } onChange={ ( e ) => setCount( e.target.value ) } />
 					</div>
 				</div>
+			) }
+			{ mode === 'new' && (
+				<div className="nbs-row-actions">
+					<label className="nbs-check"><input type="checkbox" checked={ makeColonies } onChange={ ( e ) => setMakeColonies( e.target.checked ) } /> Skapa ett samhälle i varje ny kupa</label>
+					{ makeColonies && (
+						<select value={ colStatus } onChange={ ( e ) => setColStatus( e.target.value ) } aria-label="Status för de nya samhällena">
+							{ COLONY_STATUS.filter( ( s ) => COLONY_ACTIVE.includes( s[ 0 ] ) ).map( ( [ k, l ] ) => <option key={ k } value={ k }>{ l }</option> ) }
+						</select>
+					) }
+				</div>
+			) }
+
+			{ mode === 'colonies' && (
+				<>
+					<div className="nbs-toolbar">
+						<select value={ filter } onChange={ ( e ) => setFilter( e.target.value ) } aria-label="Bigård">
+							<option value="">Alla bigårdar</option>
+							{ apiaries.map( ( a ) => <option key={ a.id } value={ a.id }>{ a.name }</option> ) }
+						</select>
+						<button type="button" className="nbs-link-btn" onClick={ () => setPickedCol( allCol ? pickedCol.filter( ( id ) => ! colonies.some( ( c ) => c.id === id ) ) : [ ...new Set( [ ...pickedCol, ...colonies.map( ( c ) => c.id ) ] ) ] ) }>
+							{ allCol ? 'Avmarkera alla' : `Markera alla${ filter ? ' i bigården' : '' } (${ colonies.length })` }
+						</button>
+					</div>
+					<ul className="nbs-ap-hives">
+						{ colonies.map( ( c ) => {
+							const h = c.hive_id && reg.hive[ c.hive_id ];
+							const a = reg.apiary[ c.apiary_id ];
+							return (
+								<li key={ c.id }>
+									<label>
+										<input type="checkbox" checked={ pickedCol.includes( c.id ) } onChange={ () => toggleCol( c.id ) } />
+										<strong>Samhälle { c.code }</strong>
+										<span className="nbs-muted">{ [ a && a.name, h ? `kupa ${ h.label }${ reg.itemName( h.system_id ) ? ' · ' + reg.itemName( h.system_id ) : '' }` : 'ingen kupa – får en ny' ].filter( Boolean ).join( ' · ' ) }</span>
+									</label>
+								</li>
+							);
+						} ) }
+						{ ! colonies.length && <li className="nbs-muted">Inga aktiva samhällen.</li> }
+					</ul>
+					<label className="nbs-check"><input type="checkbox" checked={ keep } onChange={ ( e ) => setKeep( e.target.checked ) } /> Ta inte ut ramar ur kupor med samhälle (bina sitter kvar på ramarna; nya lådor får ändå ramar)</label>
+				</>
 			) }
 
 			{ mode === 'replace' && (
@@ -579,7 +655,12 @@ function ApplyModal( { type, onClose } ) {
 					{ book && ! preview.items.length && <p className="nbs-muted">Kuporna har redan rätt material – inget behöver flyttas.</p> }
 					{ short && ! buy && <p className="nbs-warn">Det saknas material i lagret. Registrera inköpet först eller kryssa i "Registrera inköp av det som saknas".</p> }
 					<p className="nbs-muted">
-						{ mode === 'new' ? `Nya kupor: ${ preview.hives.map( ( h ) => h.label ).join( ', ' ) }.` : `${ preview.hives.length } kupor får kuptypen ${ type.name }.` }
+						{ mode === 'new' && `Nya kupor: ${ preview.hives.map( ( h ) => h.label ).join( ', ' ) }.${ makeColonies ? ` Ett nytt samhälle (${ ( COLONY_STATUS.find( ( s ) => s[ 0 ] === colStatus ) || [ '', '' ] )[ 1 ].toLowerCase() }) i varje.` : '' }` }
+						{ mode === 'colonies' && ( () => {
+							const fresh = preview.hives.filter( ( h ) => ! h.id );
+							return `${ preview.hives.length } samhällen får kuptypen ${ type.name }.${ fresh.length ? ` Nya kupor för samhällen utan kupa: ${ fresh.map( ( h ) => `${ h.label } (samhälle ${ h.colony_code })` ).join( ', ' ) }.` : '' }`;
+						} )() }
+						{ mode === 'replace' && `${ preview.hives.length } kupor får kuptypen ${ type.name }.` }
 						{ book && ' Lagerbokningen kan ångras under Lager → Rörelser; kuptypen på kuporna ändras då inte tillbaka.' }
 					</p>
 				</>

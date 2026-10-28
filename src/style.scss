@@ -723,3 +723,5 @@ ol.nbs-sheet-boxes { counter-reset: none; li::before { content: '□ '; } }
 	gap: 6px;
 	input[type="color"] { width: 26px !important; height: 22px; padding: 0; margin: 0 !important; border: 1px solid $line; border-radius: 5px; background: none; }
 }
+.nbs-hb-total td { font-weight: 700; border-top: 2px solid $line; }
+.nbs-hb-palette .nbs-h3 { margin: 16px 0 2px; }

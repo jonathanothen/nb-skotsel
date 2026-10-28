@@ -177,6 +177,9 @@ export function createHiveScene( el, { onPick } = {} ) {
 
 /** Hur mycket en del höjer stapeln. Taket sitter över lådan och bidrar bara med sin topp. */
 export function stackHeight( part ) {
+	if ( part.kind === 'accessory' ) {
+		return 0;
+	}
 	return part.kind === 'roof' ? part.top || 20 : part.height;
 }
 
@@ -280,9 +283,24 @@ function buildPart( part, y0, opts ) {
 				block( g, mat, [ -hx + 30, hx - 30 ], [ y0 + top, y0 + top + 5 ], [ z - 6, z + 6 ] );
 			}
 		}
-	} else if ( part.kind === 'excluder' && lm.look.sheet ) {
-		// Spärrgaller av plast: ett tunt ark utan ram.
+	} else if ( part.kind === 'accessory' ) {
+		// Tillbehör (flusterförminskare, ramspridare …) räknas i materiallistan men ritas inte.
+	} else if ( lm.look.sheet ) {
+		// Spärrgaller eller propolisgaller av plast: ett tunt ark utan ram.
 		block( g, lm.detail, [ -hx, hx ], [ y0, y0 + part.height ], [ -hz, hz ] );
+	} else if ( part.kind === 'feeder' ) {
+		// Foderlåda: ram runt om, botten med fodertråg och genomskinligt lock.
+		const t = part.wall || 20;
+		const top = y0 + part.height;
+		block( g, mat, [ -hx, hx ], [ y0, top ], [ -hz, -hz + t ] );
+		block( g, mat, [ -hx, hx ], [ y0, top ], [ hz - t, hz ] );
+		block( g, mat, [ -hx, -hx + t ], [ y0, top ], [ -hz + t, hz - t ] );
+		block( g, mat, [ hx - t, hx ], [ y0, top ], [ -hz + t, hz - t ] );
+		block( g, mat, [ -hx + t, hx - t ], [ y0, y0 + 10 ], [ -hz + t, hz - t ] );
+		const lid = material( 'lid', true, opts.hi, 0xd8e6ee );
+		lid.opacity = 0.45;
+		block( g, lid, [ -hx + t, hx - t ], [ top - 4, top - 2 ], [ -hz + t, hz - t ] );
+		lid.dispose();
 	} else if ( part.kind === 'excluder' ) {
 		// Spärrgaller: träram runt om och ett tunt galler i mitten.
 		const t = part.rim || 20;

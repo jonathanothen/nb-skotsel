@@ -120,6 +120,7 @@ class NBS_Hives {
 	private static function needs($lib, $type) {
 		$brands = array_column($lib['brands'], 'name', 'id');
 		$system = array_column($lib['systems'], 'name', 'id');
+		$shops  = array_column($lib['retailers'] ?? [], 'name', 'id');
 		$out    = [];
 		foreach ((array) ($type['config']['stack'] ?? []) as $s) {
 			$p = self::part($lib, $s['part']);
@@ -130,7 +131,7 @@ class NBS_Hives {
 				'kategori'   => 'Kupdel',
 				'enhet'      => 'st',
 				'pris'       => $p['price'] ?? null,
-				'leverantor' => $brands[$p['brand']] ?? '',
+				'leverantor' => isset($p['retailer']) ? ($shops[$p['retailer']] ?? '') : ($brands[$p['brand']] ?? ''),
 			]];
 			$out[$p['id']][1] += (int) $s['qty'];
 			if ($p['kind'] === 'box' && (int) $s['frames'] > 0) {
@@ -197,8 +198,9 @@ class NBS_Hives {
 	}
 
 	/**
-	 * Lägger ut en kuptyp. $d: type_id, mode (new|replace), apiary_id + count (new),
-	 * hive_ids (replace), store_id, book (lagret följer med), buy (köp in det som saknas),
+	 * Lägger ut en kuptyp. $d: type_id, mode (new|replace|colonies), apiary_id + count (new, med
+	 * colony_status för att skapa ett samhälle i varje ny kupa), hive_ids (replace), colony_ids
+	 * (colonies: samhällets kupa ersätts, samhällen utan kupa får en ny), store_id, book (lagret följer med), buy (köp in det som saknas),
 	 * keep_frames (ramar i kupor med samhälle står kvar), date, dry (bara förhandsvisning).
 	 */
 	public static function apply($org_id, $d) {
@@ -215,7 +217,7 @@ class NBS_Hives {
 		$buy   = !empty($d['buy']);
 		$keep  = !array_key_exists('keep_frames', $d) || !empty($d['keep_frames']);
 		$date  = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($d['date'] ?? '')) ? $d['date'] : current_time('Y-m-d');
-		$mode  = ($d['mode'] ?? '') === 'replace' ? 'replace' : 'new';
+		$mode  = in_array($d['mode'] ?? '', ['replace', 'colonies'], true) ? $d['mode'] : 'new';
 		$store = null;
 		if ($book) {
 			$store = NBS_Stock::loc($org_id, ['type' => 'store', 'id' => $d['store_id'] ?? '']);
@@ -224,24 +226,45 @@ class NBS_Hives {
 			}
 		}
 
-		// Kuporna som berörs.
+		// Kuporna som berörs. Nya kupor får nästa lediga nummer.
 		$hives = [];
+		$label = null;
+		$next  = function () use (&$label, $org_id) {
+			$label = $label === null ? NBS_Ops::next_code($org_id, 'hive') : self::next_label($label);
+			while (!NBS_Entities::unique_ok($org_id, 'hive', $label, null)) {
+				$label = self::next_label($label);
+			}
+			return $label;
+		};
 		if ($mode === 'new') {
 			$apiary = NBS_Entities::get($org_id, 'apiary', (string) ($d['apiary_id'] ?? ''));
 			$count  = (int) ($d['count'] ?? 0);
+			$status = (string) ($d['colony_status'] ?? '');
 			if (!$apiary) {
 				return new WP_Error('nbs_invalid', 'Välj bigården som kuporna ska stå i.', ['status' => 400]);
 			}
 			if ($count < 1 || $count > 200) {
 				return new WP_Error('nbs_invalid', 'Antal kupor ska vara 1–200.', ['status' => 400]);
 			}
-			$label = NBS_Ops::next_code($org_id, 'hive');
+			if ($status !== '' && !in_array($status, NBS_Entities::ACTIVE['colony'], true)) {
+				return new WP_Error('nbs_invalid', 'Okänd status för de nya samhällena.', ['status' => 400]);
+			}
 			for ($i = 0; $i < $count; $i++) {
-				while (!NBS_Entities::unique_ok($org_id, 'hive', $label, null)) {
-					$label = self::next_label($label);
+				$hives[] = ['id' => null, 'label' => $next(), 'colony' => null, 'apiary' => $apiary['id'], 'new_colony' => $status ?: null];
+			}
+		} elseif ($mode === 'colonies') {
+			foreach (array_unique((array) ($d['colony_ids'] ?? [])) as $cid) {
+				$c = NBS_Entities::get($org_id, 'colony', (string) $cid);
+				if (!$c || !in_array($c['status'], NBS_Entities::ACTIVE['colony'], true)) {
+					return new WP_Error('nbs_404', 'Ett av samhällena finns inte eller är avslutat.', ['status' => 404]);
 				}
-				$hives[] = ['id' => null, 'label' => $label, 'colony' => null];
-				$label   = self::next_label($label);
+				$h = $c['hive_id'] ? NBS_Entities::get($org_id, 'hive', $c['hive_id']) : null;
+				$hives[] = $h
+					? ['id' => $h['id'], 'label' => $h['label'], 'colony' => $c, 'apiary' => $c['apiary_id']]
+					: ['id' => null, 'label' => $next(), 'colony' => null, 'apiary' => $c['apiary_id'], 'assign' => $c];
+			}
+			if (!$hives) {
+				return new WP_Error('nbs_invalid', 'Välj samhällen.', ['status' => 400]);
 			}
 		} else {
 			foreach (array_unique((array) ($d['hive_ids'] ?? [])) as $hid) {
@@ -302,7 +325,8 @@ class NBS_Hives {
 			'mode'   => $mode,
 			'book'   => $book,
 			'hives'  => array_map(function ($h) {
-				return ['id' => $h['id'], 'label' => $h['label'], 'colony' => $h['colony']['id'] ?? null, 'in' => array_sum($h['in']), 'out' => array_sum($h['out'])];
+				$c = $h['colony'] ?: ($h['assign'] ?? null);
+				return ['id' => $h['id'], 'label' => $h['label'], 'colony' => $c['id'] ?? null, 'colony_code' => $c['code'] ?? null, 'new_colony' => !empty($h['new_colony']), 'in' => array_sum($h['in']), 'out' => array_sum($h['out'])];
 			}, $plan),
 			'items'  => $items,
 			'short'  => array_sum(array_column($items, 'short')) > 0,
@@ -336,11 +360,23 @@ class NBS_Hives {
 				NBS_Entities::patch($org_id, 'hive', $h['id'], ['system_id' => $type['system_id']]);
 				continue;
 			}
-			$new = NBS_Entities::save($org_id, 'hive', ['label' => $h['label'], 'system_id' => $type['system_id'], 'apiary_id' => $d['apiary_id'], 'active' => true]);
+			$new = NBS_Entities::save($org_id, 'hive', ['label' => $h['label'], 'system_id' => $type['system_id'], 'apiary_id' => $h['apiary'], 'active' => true]);
 			if (is_wp_error($new)) {
 				return $new;
 			}
 			$plan[$k]['id'] = $new['id'];
+			// Samhälle utan kupa får den nya kupan; eller ett nytt samhälle skapas i kupan.
+			if (!empty($h['assign'])) {
+				$r = NBS_Ops::change_hive($org_id, $h['assign']['id'], $new['id'], $date, $note);
+			} elseif (!empty($h['new_colony'])) {
+				$r = NBS_Entities::save($org_id, 'colony', ['code' => NBS_Ops::next_code($org_id, 'colony'), 'status' => $h['new_colony'], 'apiary_id' => $h['apiary'], 'hive_id' => $new['id'], 'started' => $date]);
+				$plan[$k]['created_colony'] = is_wp_error($r) ? null : $r;
+			} else {
+				$r = null;
+			}
+			if (is_wp_error($r)) {
+				return $r;
+			}
 		}
 		if ($book) {
 			// Först tillbaka till lagret, sedan ut, så att återlämnat material kan återanvändas.
@@ -357,6 +393,9 @@ class NBS_Hives {
 			}
 		}
 		NBS_Repo::audit('hivetype', $type['id'], 'update', ['applied' => $mode, 'hives' => count($plan), 'batch' => $book ? $batch : null]);
-		return $result + ['batch_id' => $book ? $batch : null, 'hive_ids' => array_column($plan, 'id')];
+		$created = array_filter(array_map(function ($h) {
+			return $h['created_colony']['code'] ?? null;
+		}, $plan));
+		return $result + ['batch_id' => $book ? $batch : null, 'hive_ids' => array_column($plan, 'id'), 'new_colonies' => array_values($created)];
 	}
 }

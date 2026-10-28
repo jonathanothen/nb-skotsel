@@ -78,6 +78,11 @@ per samhälle, partikoder (ÅR-BIGÅRD-NR), tappning med burkar från lagret och
   bigård eller ersätter valda kupor: kupans innehåll jämförs med kuptypens materiallista, det som saknas
   flyttas från en lagerplats och det som blir över går tillbaka (en bokning, kan ångras). Ramar tas inte ut
   ur kupor med samhälle. Valfritt inköp av det som saknas. Kupor har `apiary_id`, som följer samhället.
+- BeeBox-sortimentet (Biredskapsdepån) hämtas med `node tools/biredskapsdepan.mjs`: delar, system och
+  kuppaket med pris, länk och datum. Kör igen för nya priser och pusha `library/index.json`. Måtten är
+  preliminära (fotavtryck från spärrgallrens storlek) tills de mätts upp.
+- *Lägg ut* kan också ge valda samhällen (eller alla i en bigård) en kuptyp: samhällets kupa ersätts, och
+  samhällen utan kupa får en ny. Nya kupor kan få ett nytt samhälle var.
 - Inställningar → Uppdateringar: sök efter nytt i biblioteket och pluginet, och uppdatera pluginet direkt.
 
 ### Körplanering
