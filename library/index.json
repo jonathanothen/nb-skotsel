@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "version": "2026-10-28.2",
+ "version": "2026-10-28.3",
  "about": "Gemensamt kupbibliotek för nb-skotsel. Mått i mm. Ramarna genereras från Fristad/3D-ramar (ramparam.py + exportera_glb.py). Delarnas mått: source = standard (beräknat från ramformatet), datablad eller uppmatt.",
  "brands": [
   {
@@ -21,6 +21,137 @@
    "frames": 10,
    "spacing": 35,
    "note": "Lådans långsida går längs ramarnas överlist (kallbyggt). Yttermått som amerikansk 10-ramars Langstroth."
+  },
+  {
+   "id": "std-ln10",
+   "name": "Lågnormal 10 ramar",
+   "brand": "standard",
+   "footprint": [
+    422,
+    416
+   ],
+   "frameLength": 396,
+   "frames": 10,
+   "spacing": 35,
+   "note": "Lådorna tar både Lågnormal- och HLS-ramar (samma längd). Kallbyggt. Mått beräknade från ramformatet tills de mätts upp."
+  }
+ ],
+ "kits": [
+  {
+   "id": "kit-ls10-farrar",
+   "name": "Standardkupa Langstroth 1 + 2 Farrar",
+   "system": "std-ls10",
+   "stack": [
+    {
+     "part": "std-ls10-botten",
+     "qty": 1
+    },
+    {
+     "part": "std-ls10-lada-langstroth",
+     "qty": 1,
+     "frames": 10
+    },
+    {
+     "part": "std-ls10-spargaller",
+     "qty": 1
+    },
+    {
+     "part": "std-ls10-lada-farrar",
+     "qty": 2,
+     "frames": 10
+    },
+    {
+     "part": "std-ls10-tak",
+     "qty": 1
+    }
+   ]
+  },
+  {
+   "id": "kit-ls10-farrar-only",
+   "name": "Standardkupa Farrar 2 + 2",
+   "system": "std-ls10",
+   "stack": [
+    {
+     "part": "std-ls10-botten",
+     "qty": 1
+    },
+    {
+     "part": "std-ls10-lada-farrar",
+     "qty": 2,
+     "frames": 10
+    },
+    {
+     "part": "std-ls10-spargaller",
+     "qty": 1
+    },
+    {
+     "part": "std-ls10-lada-farrar",
+     "qty": 2,
+     "frames": 10
+    },
+    {
+     "part": "std-ls10-tak",
+     "qty": 1
+    }
+   ]
+  },
+  {
+   "id": "kit-ln10",
+   "name": "Standardkupa Lågnormal 1 + 2 HLS",
+   "system": "std-ln10",
+   "stack": [
+    {
+     "part": "std-ln10-botten",
+     "qty": 1
+    },
+    {
+     "part": "std-ln10-lada-ln",
+     "qty": 1,
+     "frames": 10
+    },
+    {
+     "part": "std-ln10-spargaller",
+     "qty": 1
+    },
+    {
+     "part": "std-ln10-lada-hls",
+     "qty": 2,
+     "frames": 10
+    },
+    {
+     "part": "std-ln10-tak",
+     "qty": 1
+    }
+   ]
+  },
+  {
+   "id": "kit-hls10",
+   "name": "Standardkupa HLS 2 + 2",
+   "system": "std-ln10",
+   "stack": [
+    {
+     "part": "std-ln10-botten",
+     "qty": 1
+    },
+    {
+     "part": "std-ln10-lada-hls",
+     "qty": 2,
+     "frames": 10
+    },
+    {
+     "part": "std-ln10-spargaller",
+     "qty": 1
+    },
+    {
+     "part": "std-ln10-lada-hls",
+     "qty": 2,
+     "frames": 10
+    },
+    {
+     "part": "std-ln10-tak",
+     "qty": 1
+    }
+   ]
   }
  ],
  "parts": [
@@ -136,6 +267,98 @@
    "top": 20,
    "wall": 15,
    "overlap": 55
+  },
+  {
+   "id": "std-ln10-botten",
+   "kind": "bottom",
+   "name": "Botten",
+   "system": "std-ln10",
+   "brand": "standard",
+   "source": "standard",
+   "outer": [
+    422,
+    416
+   ],
+   "height": 60,
+   "floor": 20,
+   "wall": 22,
+   "entrance": [
+    372,
+    20
+   ]
+  },
+  {
+   "id": "std-ln10-lada-ln",
+   "kind": "box",
+   "name": "Låda Lågnormal",
+   "system": "std-ln10",
+   "brand": "standard",
+   "source": "standard",
+   "frame": "lagnormal",
+   "frames": 10,
+   "outer": [
+    422,
+    416
+   ],
+   "height": 231,
+   "wall": 22,
+   "rabbet": [
+    11,
+    10
+   ],
+   "topSpace": 0
+  },
+  {
+   "id": "std-ln10-lada-hls",
+   "kind": "box",
+   "name": "Låda HLS",
+   "system": "std-ln10",
+   "brand": "standard",
+   "source": "standard",
+   "frame": "hls",
+   "frames": 10,
+   "outer": [
+    422,
+    416
+   ],
+   "height": 155,
+   "wall": 22,
+   "rabbet": [
+    11,
+    10
+   ],
+   "topSpace": 0
+  },
+  {
+   "id": "std-ln10-spargaller",
+   "kind": "excluder",
+   "name": "Spärrgaller",
+   "system": "std-ln10",
+   "brand": "standard",
+   "source": "standard",
+   "outer": [
+    422,
+    416
+   ],
+   "height": 8,
+   "rim": 8,
+   "note": "Läggs mellan yngelrum och skattlåda."
+  },
+  {
+   "id": "std-ln10-tak",
+   "kind": "roof",
+   "name": "Tak (teleskop)",
+   "system": "std-ln10",
+   "brand": "standard",
+   "source": "standard",
+   "outer": [
+    452,
+    446
+   ],
+   "height": 80,
+   "top": 20,
+   "wall": 15,
+   "overlap": 60
   }
  ],
  "frames": [

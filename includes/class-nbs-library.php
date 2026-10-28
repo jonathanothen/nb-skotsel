@@ -95,6 +95,7 @@ class NBS_Library {
 			'brands'  => $list('brands'),
 			'systems' => $list('systems'),
 			'parts'   => $list('parts'),
+			'kits'    => $list('kits'),
 			'frames'  => $frames,
 		];
 	}

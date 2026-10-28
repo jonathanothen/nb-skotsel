@@ -10,6 +10,7 @@ const KINDS = { bottom: 'Botten', box: 'Låda', excluder: 'Spärrgaller', roof: 
 // Ordning nerifrån och upp när en del läggs till.
 const RANK = { bottom: 0, box: 5, excluder: 5, roof: 9 };
 const STORE = 'nbs_hivebuilder';
+const newKey = () => Date.now().toString( 36 ) + '-' + Math.random().toString( 36 ).slice( 2, 7 );
 
 const load = () => {
 	try {
@@ -48,6 +49,7 @@ export default function HiveBuilder() {
 	const systems = lib ? lib.systems : [];
 	const sys = systems.find( ( s ) => s.id === system ) || systems[ 0 ];
 	const parts = lib && sys ? lib.parts.filter( ( p ) => p.system === sys.id ) : [];
+	const kits = lib && sys ? ( lib.kits || [] ).filter( ( k ) => k.system === sys.id ) : [];
 	const partById = ( id ) => lib && lib.parts.find( ( p ) => p.id === id );
 	const rows = stack.map( ( s ) => ( { ...s, part: partById( s.part ) } ) ).filter( ( s ) => s.part );
 	const frameName = ( id ) => ( ( lib && lib.frames.find( ( f ) => f.id === id ) ) || { name: id } ).name;
@@ -96,19 +98,26 @@ export default function HiveBuilder() {
 			return;
 		}
 		setStack( ( st ) => {
-			const same = st.findIndex( ( s ) => s.part === id );
-			if ( same >= 0 && p.kind === 'box' ) {
-				return st.map( ( s, i ) => ( i === same ? { ...s, qty: s.qty + 1 } : s ) );
-			}
-			const item = { key: Date.now() + '-' + Math.random().toString( 36 ).slice( 2, 6 ), part: id, qty: 1, frames: p.kind === 'box' ? p.frames || 0 : 0 };
 			const rank = RANK[ p.kind ] ?? 5;
 			let at = st.length;
 			while ( at > 0 && ( RANK[ ( partById( st[ at - 1 ].part ) || {} ).kind ] ?? 5 ) > rank ) {
 				at--;
 			}
-			return [ ...st.slice( 0, at ), item, ...st.slice( at ) ];
+			// Samma låda direkt under räknas upp; med t.ex. ett spärrgaller emellan blir det en ny rad.
+			if ( p.kind === 'box' && at > 0 && st[ at - 1 ].part === id ) {
+				return st.map( ( s, i ) => ( i === at - 1 ? { ...s, qty: s.qty + 1 } : s ) );
+			}
+			return [ ...st.slice( 0, at ), { key: newKey(), part: id, qty: 1, frames: p.kind === 'box' ? p.frames || 0 : 0 }, ...st.slice( at ) ];
 		} );
 	};
+	// Delar en rad med flera lådor: en låda läggs som egen rad ovanpå, så att något kan läggas emellan.
+	const split = ( i ) => setStack( ( st ) => {
+		const s = st[ i ];
+		if ( ! s || s.qty < 2 ) {
+			return st;
+		}
+		return [ ...st.slice( 0, i ), { ...s, qty: s.qty - 1 }, { ...s, key: newKey(), qty: 1 }, ...st.slice( i + 1 ) ];
+	} );
 	const update = ( i, patch ) => setStack( ( st ) => st.map( ( s, j ) => ( j === i ? { ...s, ...patch } : s ) ) );
 	const remove = ( i ) => ( setStack( ( st ) => st.filter( ( s, j ) => j !== i ) ), setSelected( null ) );
 	const move = ( i, d ) => setStack( ( st ) => {
@@ -192,6 +201,16 @@ export default function HiveBuilder() {
 			}
 		}
 	};
+	// Standardkupa ur biblioteket: läggs in som en ny, osparad kupa (spara den som egen kuptyp).
+	const openKit = ( id ) => {
+		const k = ( lib.kits || [] ).find( ( x ) => x.id === id );
+		if ( ! k ) {
+			return;
+		}
+		setTypeId( '' );
+		setSelected( null );
+		setStack( k.stack.filter( ( s ) => partById( s.part ) ).map( ( s ) => ( { key: newKey(), part: s.part, qty: s.qty || 1, frames: s.frames ?? ( partById( s.part ).frames || 0 ) } ) ) );
+	};
 	const saveType = async ( name, asNew ) => {
 		try {
 			const body = { name, stack: stack.map( ( s ) => ( { part: s.part, qty: s.qty, frames: s.frames } ) ) };
@@ -256,6 +275,15 @@ export default function HiveBuilder() {
 							{ systems.map( ( s ) => <option key={ s.id } value={ s.id }>{ s.name } – { ( lib.brands.find( ( b ) => b.id === s.brand ) || { name: s.brand } ).name }</option> ) }
 						</select>
 					</label>
+					{ kits.length > 0 && (
+						<label className="nbs-field">
+							<span>Börja från standardkupa</span>
+							<select value="" onChange={ ( e ) => e.target.value && openKit( e.target.value ) }>
+								<option value="">Välj…</option>
+								{ kits.map( ( k ) => <option key={ k.id } value={ k.id }>{ k.name }</option> ) }
+							</select>
+						</label>
+					) }
 					<ul className="nbs-hb-parts">
 						{ parts.map( ( p ) => (
 							<li key={ p.id } draggable onDragStart={ ( e ) => e.dataTransfer.setData( 'text/plain', 'nbs-part:' + p.id ) }>
@@ -301,6 +329,7 @@ export default function HiveBuilder() {
 								<div className="nbs-hb-row">
 									<strong>{ r.part.name }</strong>
 									<span className="nbs-hb-actions">
+										{ r.qty > 1 && <button type="button" className="nbs-link-btn" onClick={ ( e ) => ( e.stopPropagation(), split( i ) ) } title="Dela upp, så att något kan läggas emellan">Dela</button> }
 										<button type="button" className="nbs-link-btn" onClick={ ( e ) => ( e.stopPropagation(), move( i, 1 ) ) } aria-label="Flytta upp">▲</button>
 										<button type="button" className="nbs-link-btn" onClick={ ( e ) => ( e.stopPropagation(), move( i, -1 ) ) } aria-label="Flytta ner">▼</button>
 										<button type="button" className="nbs-link-btn" onClick={ ( e ) => ( e.stopPropagation(), remove( i ) ) } aria-label="Ta bort">✕</button>
