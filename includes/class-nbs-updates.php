@@ -18,17 +18,17 @@ class NBS_Updates {
 		return plugin_basename(NBS_DIR . 'nb-skotsel.php');
 	}
 
-	private static function remote_version() {
-		$res = wp_remote_get('https://raw.githubusercontent.com/' . self::REPO . '/main/nb-skotsel.php', ['timeout' => 10, 'headers' => ['Cache-Control' => 'no-cache']]);
+	private static function remote_version($ref = 'main') {
+		$res = wp_remote_get(NBS_Library::raw_url($ref, 'nb-skotsel.php'), ['timeout' => 10, 'headers' => ['Cache-Control' => 'no-cache']]);
 		if (is_wp_error($res) || wp_remote_retrieve_response_code($res) !== 200) {
 			return null;
 		}
 		return preg_match('/^[ \t\/*#@]*Version:\s*([0-9][0-9a-z.\-]*)/mi', wp_remote_retrieve_body($res), $m) ? $m[1] : null;
 	}
 
-	public static function status($remote = null) {
+	public static function status($ref = 'main') {
 		$lib    = NBS_Library::get();
-		$remote = $remote ?? self::remote_version();
+		$remote = self::remote_version($ref);
 		return [
 			'plugin'  => [
 				'installed'  => NBS_VERSION,
@@ -56,7 +56,37 @@ class NBS_Updates {
 			require_once ABSPATH . 'wp-includes/update.php';
 		}
 		wp_update_plugins();
-		return self::status();
+		$sha    = NBS_Library::head_sha();
+		$status = self::status($sha);
+		if ($status['plugin']['available']) {
+			self::offer($status['plugin']['remote'], $sha);
+		}
+		return $status + ['ref' => $sha];
+	}
+
+	/**
+	 * Lägger in uppdateringen i WordPress lista, med paketet från just den commit som lästes.
+	 * Uppdateraren läser main via raw-cachen och kan några minuter efter en push fortfarande
+	 * se den gamla versionen – då skulle "Uppdatera nu" annars inte hitta något.
+	 */
+	private static function offer($version, $ref) {
+		$t = get_site_transient('update_plugins');
+		if (!is_object($t)) {
+			$t = new stdClass();
+		}
+		$t->response                     = isset($t->response) && is_array($t->response) ? $t->response : [];
+		$t->response[self::basename()]   = (object) [
+			'id'          => self::REPO,
+			'slug'        => 'nb-skotsel',
+			'plugin'      => self::basename(),
+			'new_version' => $version,
+			'url'         => 'https://github.com/' . self::REPO,
+			'package'     => 'https://github.com/' . self::REPO . '/archive/' . $ref . '.zip',
+		];
+		if (isset($t->no_update[self::basename()])) {
+			unset($t->no_update[self::basename()]);
+		}
+		set_site_transient('update_plugins', $t);
 	}
 
 	public static function update_plugin() {

@@ -13,18 +13,34 @@ if (!defined('ABSPATH')) {
  */
 class NBS_Library {
 
-	const REMOTE    = 'https://raw.githubusercontent.com/jonathanothen/nb-skotsel/main/library/';
+	const REPO      = 'jonathanothen/nb-skotsel';
 	const CACHE_KEY = 'nbs_library';
+
+	/**
+	 * Senaste commit på main. raw.githubusercontent cachar main i flera minuter efter en push,
+	 * men en fil hämtad på commit-id är alltid aktuell (och kan cachas för alltid av webbläsaren).
+	 * Används bara när någon trycker på en knapp – GitHubs API tillåter 60 anrop i timmen.
+	 */
+	public static function head_sha() {
+		$res = wp_remote_get('https://api.github.com/repos/' . self::REPO . '/commits/main', ['timeout' => 10, 'headers' => ['Accept' => 'application/vnd.github.sha']]);
+		$sha = is_wp_error($res) || wp_remote_retrieve_response_code($res) !== 200 ? '' : trim(wp_remote_retrieve_body($res));
+		return preg_match('/^[0-9a-f]{40}$/', $sha) ? $sha : 'main';
+	}
+
+	public static function raw_url($ref, $path) {
+		return 'https://raw.githubusercontent.com/' . self::REPO . '/' . $ref . '/' . $path;
+	}
 
 	public static function get($refresh = false) {
 		$cached = get_site_transient(self::CACHE_KEY);
 		if (!$refresh && is_array($cached)) {
 			return $cached;
 		}
-		$lib = self::fetch_remote();
+		$ref = $refresh ? self::head_sha() : 'main';
+		$lib = self::fetch_remote($ref);
 		if ($lib) {
 			$lib['origin'] = 'github';
-			$lib['base']   = self::REMOTE;
+			$lib['base']   = self::raw_url($ref, 'library/');
 		} else {
 			$lib = self::local();
 			if (!$lib) {
@@ -44,8 +60,8 @@ class NBS_Library {
 		return $lib;
 	}
 
-	private static function fetch_remote() {
-		$res = wp_remote_get(self::REMOTE . 'index.json', ['timeout' => 10, 'headers' => ['Cache-Control' => 'no-cache']]);
+	private static function fetch_remote($ref) {
+		$res = wp_remote_get(self::raw_url($ref, 'library/index.json'), ['timeout' => 10, 'headers' => ['Cache-Control' => 'no-cache']]);
 		if (is_wp_error($res) || wp_remote_retrieve_response_code($res) !== 200) {
 			return null;
 		}
