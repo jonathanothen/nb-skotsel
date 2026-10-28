@@ -82,7 +82,8 @@ function builtIn( type, item ) {
 		case 'hive':
 			return [
 				{ key: 'label', label: 'Märkning/nummer', type: 'text', required: true },
-				{ key: 'system_id', label: 'Kupsystem', type: 'ref', ref: 'kupsystem' },
+				{ key: 'system_id', label: 'Kupsystem/kuptyp', type: 'ref', ref: 'kupsystem', help: 'Byt kuptyp med materialet i Kupbyggaren → Lägg ut, så följer lagret med.' },
+				{ key: 'apiary_id', label: 'Står i bigård', type: 'ref', ref: '@apiary', help: 'Följer samhället när det flyttas.' },
 				{ key: 'notes', label: 'Anteckningar', type: 'textarea' },
 				{ key: 'active', label: 'I bruk', type: 'bool', help: 'Kasserade kupor kan inte väljas.' },
 			];

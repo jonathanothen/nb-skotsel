@@ -12,7 +12,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 
-const COLORS = { bottom: 0x9a7448, box: 0xd2a56c, roof: 0x6f7c86, other: 0xb89870 };
+const COLORS = { bottom: 0x9a7448, box: 0xd2a56c, roof: 0x6f7c86, excluder: 0xb8865a, grid: 0xb9bcc0, other: 0xb89870 };
 const GAP = 90; // avstånd mellan delarna i isärdragen vy
 
 export function createHiveScene( el, { onPick } = {} ) {
@@ -241,6 +241,19 @@ function buildPart( part, y0, opts ) {
 		block( g, mat, [ -hx, hx ], [ base, y0 ], [ hz - t, hz ] );
 		block( g, mat, [ -hx, -hx + t ], [ base, y0 ], [ -hz + t, hz - t ] );
 		block( g, mat, [ hx - t, hx ], [ base, y0 ], [ -hz + t, hz - t ] );
+	} else if ( part.kind === 'excluder' ) {
+		// Spärrgaller: träram runt om och ett tunt galler i mitten.
+		const t = part.rim || 20;
+		const top = y0 + part.height;
+		block( g, mat, [ -hx, hx ], [ y0, top ], [ -hz, -hz + t ] );
+		block( g, mat, [ -hx, hx ], [ y0, top ], [ hz - t, hz ] );
+		block( g, mat, [ -hx, -hx + t ], [ y0, top ], [ -hz + t, hz - t ] );
+		block( g, mat, [ hx - t, hx ], [ y0, top ], [ -hz + t, hz - t ] );
+		const metal = material( 'grid', opts.transparent, opts.hi );
+		metal.metalness = 0.6;
+		metal.roughness = 0.35;
+		block( g, metal, [ -hx + t, hx - t ], [ y0 + part.height / 2 - 0.5, y0 + part.height / 2 + 0.5 ], [ -hz + t, hz - t ] );
+		metal.dispose();
 	} else {
 		block( g, mat, [ -hx, hx ], [ y0, y0 + part.height ], [ -hz, hz ] );
 	}

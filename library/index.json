@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "version": "2026-10-28.1",
+ "version": "2026-10-28.2",
  "about": "Gemensamt kupbibliotek för nb-skotsel. Mått i mm. Ramarna genereras från Fristad/3D-ramar (ramparam.py + exportera_glb.py). Delarnas mått: source = standard (beräknat från ramformatet), datablad eller uppmatt.",
  "brands": [
   {
@@ -63,6 +63,63 @@
     10
    ],
    "topSpace": 0
+  },
+  {
+   "id": "std-ls10-lada-langstroth",
+   "kind": "box",
+   "name": "Låda Langstroth",
+   "system": "std-ls10",
+   "brand": "standard",
+   "source": "standard",
+   "frame": "langstroth",
+   "frames": 10,
+   "outer": [
+    505,
+    413
+   ],
+   "height": 241,
+   "wall": 20,
+   "rabbet": [
+    10,
+    10
+   ],
+   "topSpace": 0
+  },
+  {
+   "id": "std-ls10-lada-dadant",
+   "kind": "box",
+   "name": "Låda Dadant",
+   "system": "std-ls10",
+   "brand": "standard",
+   "source": "standard",
+   "frame": "dadant",
+   "frames": 10,
+   "outer": [
+    505,
+    413
+   ],
+   "height": 295,
+   "wall": 20,
+   "rabbet": [
+    10,
+    10
+   ],
+   "topSpace": 0
+  },
+  {
+   "id": "std-ls10-spargaller",
+   "kind": "excluder",
+   "name": "Spärrgaller",
+   "system": "std-ls10",
+   "brand": "standard",
+   "source": "standard",
+   "outer": [
+    505,
+    413
+   ],
+   "height": 8,
+   "rim": 8,
+   "note": "Ram av trä med galler av rostfri tråd eller plåt. Läggs mellan yngelrum och skattlåda."
   },
   {
    "id": "std-ls10-tak",

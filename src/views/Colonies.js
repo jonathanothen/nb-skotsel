@@ -689,16 +689,16 @@ function Hives() {
 					) }
 					<div className="nbs-table-wrap">
 						<table className="nbs-table">
-							<thead><tr><th>Kupa</th><th>Kupsystem</th><th>Samhälle</th><th>Bigård</th><th>Delar</th></tr></thead>
+							<thead><tr><th>Kupa</th><th>Kuptyp</th><th>Samhälle</th><th>Bigård</th><th>Delar</th></tr></thead>
 							<tbody>
 								{ list.map( ( h ) => {
 									const c = user[ h.id ];
 									return (
 										<tr key={ h.id } className={ h.active ? '' : 'is-inactive' }>
 											<td><button type="button" className="nbs-link-btn" onClick={ () => setEditing( h ) }><strong>{ h.label }</strong></button>{ ! h.active && <span className="nbs-badge">Kasserad</span> }</td>
-											<td data-label="Kupsystem">{ reg.itemName( h.system_id ) || '–' }</td>
+											<td data-label="Kuptyp">{ reg.itemName( h.system_id ) || '–' }</td>
 											<td data-label="Samhälle">{ c ? <a href={ href( 'samhallen/' + c.id ) }>{ c.code }</a> : <span className="nbs-muted">Ledig</span> }</td>
-											<td data-label="Bigård">{ c && reg.apiary[ c.apiary_id ] ? reg.apiary[ c.apiary_id ].name : '–' }</td>
+											<td data-label="Bigård">{ ( ( c && reg.apiary[ c.apiary_id ] ) || reg.apiary[ h.apiary_id ] || { name: '–' } ).name }</td>
 											<td data-label="Delar" className="nbs-parts">{ parts( h ) || <span className="nbs-muted">–</span> }</td>
 										</tr>
 									);

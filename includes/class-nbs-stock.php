@@ -190,6 +190,25 @@ class NBS_Stock {
 		return $id;
 	}
 
+	/**
+	 * Bokning från andra delar av systemet (t.ex. kuptyper som läggs ut i kupor), med samma
+	 * saldokontroll. $from/$to = [typ, id] eller null. Anroparen står för transaktionen.
+	 */
+	public static function book($org_id, $batch, $date, $type, $item_id, $qty, $from, $to, $opts = []) {
+		$item = self::item($org_id, $item_id);
+		if (!$item || !in_array($type, self::TYPES, true)) {
+			return new WP_Error('nbs_item', 'Artikeln finns inte.', ['status' => 400]);
+		}
+		return self::post($org_id, $batch, $date, $type, $item, $qty, $from, $to, $opts);
+	}
+
+	/** Saldo per artikel på en plats: [item_id => qty]. */
+	public static function at($org_id, $loc) {
+		global $wpdb;
+		$rows = $wpdb->get_results($wpdb->prepare('SELECT item_id, qty FROM ' . self::t('stock') . ' WHERE org_id = %s AND loc_type = %s AND loc_id = %s AND qty > 0', $org_id, $loc[0], $loc[1]), ARRAY_A);
+		return array_map('floatval', array_column($rows, 'qty', 'item_id'));
+	}
+
 	private static function prep($org_id, $d) {
 		$item = self::item($org_id, $d['item_id'] ?? '');
 		if (!$item) {

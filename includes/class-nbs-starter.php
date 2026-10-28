@@ -22,6 +22,7 @@ class NBS_Starter {
 				['key' => 'min_saldo', 'label' => 'Minsta saldo', 'type' => 'number', 'min' => 0, 'help' => 'Varning när lagret går under detta.'],
 				['key' => 'leverantor', 'label' => 'Leverantör', 'type' => 'text'],
 				['key' => 'behov_per_samhalle', 'label' => 'Behov per samhälle', 'type' => 'number', 'min' => 0, 'help' => 'För behovsberäkningen, t.ex. 7 skattlådor eller 15 kg foder per samhälle.'],
+				['key' => 'bibliotek', 'label' => 'Del i kupbiblioteket', 'type' => 'text', 'help' => 'Sätts av kupbyggaren. Artikeln används när en kuptyp läggs ut i kupor.'],
 			]],
 			'ramformat'     => ['Ramformat', 'Ramformat som används i verksamheten.', [
 				['key' => 'matt', 'label' => 'Mått', 'type' => 'text', 'help' => 'T.ex. 448 × 159 mm'],
@@ -117,7 +118,7 @@ class NBS_Starter {
 
 	/** Fält som har tillkommit i grundlistorna efter att de skapats: [lista => [fältnycklar]]. */
 	const ADDED_FIELDS = [
-		'material' => ['behov_per_samhalle'],
+		'material' => ['behov_per_samhalle', 'bibliotek'],
 	];
 
 	/**

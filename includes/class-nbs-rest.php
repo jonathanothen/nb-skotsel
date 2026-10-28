@@ -358,6 +358,36 @@ class NBS_Rest {
 			return self::out(NBS_Library::get($r['refresh'] && NBS_Auth::can_manage()));
 		});
 
+		// ---- Kuptyper från kupbyggaren och utläggning i kupor (med lagret).
+		self::route('/hivetypes', 'GET', function () use ($org) {
+			return NBS_Entities::all($org(), 'hivetype');
+		});
+		self::route('/hivetypes', 'POST', function (WP_REST_Request $r) use ($org) {
+			$body = $r->get_json_params() ?: [];
+			return self::out(NBS_Ops::tx(function () use ($org, $body) {
+				return NBS_Hives::save_type($org(), $body);
+			}));
+		}, 'can_write');
+		self::route('/hivetypes/(?P<id>[0-9a-f-]{36})', 'PUT', function (WP_REST_Request $r) use ($org) {
+			$body = $r->get_json_params() ?: [];
+			$id   = $r->get_url_params()['id'];
+			return self::out(NBS_Ops::tx(function () use ($org, $body, $id) {
+				return NBS_Hives::save_type($org(), $body, $id);
+			}));
+		}, 'can_write');
+		self::route('/hivetypes/(?P<id>[0-9a-f-]{36})', 'DELETE', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Entities::delete($org(), 'hivetype', $r->get_url_params()['id']));
+		}, 'can_write');
+		self::route('/hivetypes/apply', 'POST', function (WP_REST_Request $r) use ($org) {
+			$body = $r->get_json_params() ?: [];
+			if (!empty($body['dry'])) {
+				return self::out(NBS_Hives::apply($org(), $body));
+			}
+			return self::out(NBS_Ops::tx(function () use ($org, $body) {
+				return NBS_Hives::apply($org(), $body);
+			}));
+		}, 'can_write');
+
 		// ---- Uppdateringar av pluginet och biblioteket från GitHub.
 		self::route('/updates', 'GET', function () {
 			return NBS_Updates::status();

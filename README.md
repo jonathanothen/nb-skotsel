@@ -72,6 +72,12 @@ per samhälle, partikoder (ÅR-BIGÅRD-NR), tappning med burkar från lagret och
   `blender -b -P exportera_glb.py -- <nb-skotsel>/library` (skriver även `frames` i index.json).
 - `#/kupbyggare`: dra delar till kupan (three.js, laddas separat), antal per del, ramar per låda,
   genomskinlig/isärdragen vy, materiallista för N kupor, export som PNG och GLB.
+- Kuptyper (`nbs_hivetypes`, `NBS_Hives`): en kupa från kupbyggaren sparas som kuptyp och kopplas till en
+  post i listan *Kupsystem och kuptyper* (som kuporna pekar på). Biblioteksdelar och ramformat motsvarar
+  artiklar i *Material och artiklar* (fältet `bibliotek`, skapas vid behov). *Lägg ut* skapar nya kupor i en
+  bigård eller ersätter valda kupor: kupans innehåll jämförs med kuptypens materiallista, det som saknas
+  flyttas från en lagerplats och det som blir över går tillbaka (en bokning, kan ångras). Ramar tas inte ut
+  ur kupor med samhälle. Valfritt inköp av det som saknas. Kupor har `apiary_id`, som följer samhället.
 - Inställningar → Uppdateringar: sök efter nytt i biblioteket och pluginet, och uppdatera pluginet direkt.
 
 ### Körplanering

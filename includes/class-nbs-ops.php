@@ -45,6 +45,10 @@ class NBS_Ops {
 			return $c;
 		}
 		NBS_Entities::patch($org_id, 'colony', $colony_id, ['apiary_id' => $apiary_id]);
+		// Kupan står där samhället står.
+		if ($c['hive_id']) {
+			NBS_Entities::patch($org_id, 'hive', $c['hive_id'], ['apiary_id' => $apiary_id]);
+		}
 		NBS_Events::add($org_id, 'flytt', ['colony_id' => $colony_id, 'queen_id' => $c['queen_id'], 'apiary_id' => $apiary_id, 'from_id' => $c['apiary_id']], $date, $note);
 		return NBS_Entities::get($org_id, 'colony', $colony_id);
 	}
@@ -78,6 +82,9 @@ class NBS_Ops {
 			return $err;
 		}
 		NBS_Entities::patch($org_id, 'colony', $colony_id, ['hive_id' => $hive_id]);
+		if ($hive_id && $c['apiary_id']) {
+			NBS_Entities::patch($org_id, 'hive', $hive_id, ['apiary_id' => $c['apiary_id']]);
+		}
 		NBS_Events::add($org_id, 'kupbyte', ['colony_id' => $colony_id, 'apiary_id' => $c['apiary_id'], 'data' => ['from' => $c['hive_id'], 'to' => $hive_id]], $date, $note);
 		return NBS_Entities::get($org_id, 'colony', $colony_id);
 	}

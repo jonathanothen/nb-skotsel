@@ -46,9 +46,27 @@ class NBS_Entities {
 			'cols'   => [
 				'label'     => 'text!',
 				'system_id' => 'uuid',
+				'apiary_id' => 'uuid',
 				'active'    => 'bool',
 				'notes'     => 'textarea',
 			],
+			'index'  => ['apiary_id'],
+		],
+		// Kuptyp från kupbyggaren: uppbyggnaden (delar ur kupbiblioteket) kopplad till en post i
+		// listan "Kupsystem och kuptyper", som kuporna pekar på med system_id.
+		'hivetype' => [
+			'table'  => 'hivetypes',
+			'title'  => 'name',
+			'label'  => 'Kuptypen',
+			'unique' => 'name',
+			'cols'   => [
+				'name'      => 'text!',
+				'system_id' => 'uuid',
+				'config'    => 'json',
+				'library'   => 'code',
+				'note'      => 'textarea',
+			],
+			'index'  => ['system_id'],
 		],
 		'colony' => [
 			'table'  => 'colonies',
@@ -526,6 +544,7 @@ class NBS_Entities {
 		return [
 			'apiaries' => self::all($org_id, 'apiary'),
 			'hives'    => self::all($org_id, 'hive'),
+			'hivetypes' => self::all($org_id, 'hivetype'),
 			'colonies' => self::all($org_id, 'colony'),
 			'queens'   => $queens,
 			'fields'   => self::all_fields($org_id),
@@ -607,7 +626,7 @@ class NBS_Entities {
 		return $d;
 	}
 
-	private static function unique_ok($org_id, $type, $value, $except_id = null) {
+	public static function unique_ok($org_id, $type, $value, $except_id = null) {
 		global $wpdb;
 		$col = self::TYPES[$type]['unique'] ?? null;
 		if (!$col || $value === null) {
