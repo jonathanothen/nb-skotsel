@@ -3,7 +3,8 @@ import { api } from '../api';
 import { href, go } from '../router';
 import { useMe } from '../App';
 import { useRegister, COLONY_ACTIVE, COLONY_STATUS, label, fmtDate } from '../register';
-import { Loading, ErrorBox, Button, Empty, useToast } from '../ui';
+import { Loading, ErrorBox, Button, Empty, Modal, useToast } from '../ui';
+import { readPlaces, matchPlaces } from '../kml';
 import { EntityForm, FieldsModal, History, Fill, QueenBadge, StatusBadge, CustomValues } from '../reg-ui';
 import MapView from '../MapView';
 import RoutePlanner from './RoutePlanner';
@@ -40,6 +41,7 @@ function ApiaryList() {
 	const [ editing, setEditing ] = useState( null );
 	const [ fieldsOpen, setFieldsOpen ] = useState( false );
 	const [ busy, setBusy ] = useState( false );
+	const [ kml, setKml ] = useState( false );
 
 	const visible = reg.apiaries.filter( ( a ) => ( showInactive || a.active ) && ( ! q.trim() || ( a.name + ' ' + ( a.code || '' ) ).toLowerCase().includes( q.trim().toLowerCase() ) ) );
 	const groups = useMemo( () => {
@@ -81,6 +83,7 @@ function ApiaryList() {
 				</div>
 				<div className="nbs-row-actions">
 					{ me.can.manage && <Button variant="ghost" onClick={ () => setFieldsOpen( true ) }>Egna fält</Button> }
+					{ me.can.write && <Button variant="ghost" onClick={ () => setKml( true ) }>Importera karta (KMZ)</Button> }
 					{ reg.apiaries.length > 0 && <a className="nbs-btn is-ghost" href={ href( 'bigardar/rutt' ) }>Planera körning</a> }
 					{ me.can.write && <Button onClick={ () => setEditing( {} ) }>+ Ny bigård</Button> }
 				</div>
@@ -133,6 +136,7 @@ function ApiaryList() {
 			) }
 			{ editing && <EntityForm type="apiary" item={ editing } onClose={ () => setEditing( null ) } onSaved={ ( a ) => go( 'bigardar/' + a.id ) } /> }
 			{ fieldsOpen && <FieldsModal type="apiary" onClose={ () => setFieldsOpen( false ) } /> }
+			{ kml && <KmlImport onClose={ () => setKml( false ) } /> }
 		</div>
 	);
 }
@@ -259,6 +263,101 @@ function ApiaryMaterial( { a, colonies } ) {
 			<Contents stock={ stock } loc={ { type: 'apiary', id: a.id } } empty="Inget material står i bigården. Material i kuporna visas på varje samhälle." />
 			{ dialog && <StockModal stock={ stock } mode={ dialog.mode } preset={ dialog.preset } onClose={ () => setDialog( null ) } onDone={ reload } /> }
 		</section>
+	);
+}
+
+/**
+ * Importerar positioner från en KML/KMZ-fil (Google My Maps, Google Earth). Varje plats
+ * kopplas till en befintlig bigård (förslag efter namn) eller blir en ny bigård.
+ */
+function KmlImport( { onClose } ) {
+	const reg = useRegister();
+	const toast = useToast();
+	const [ places, setPlaces ] = useState( null );
+	const [ map, setMap ] = useState( [] );
+	const [ err, setErr ] = useState( null );
+	const [ busy, setBusy ] = useState( false );
+	const pick = async ( file ) => {
+		setErr( null );
+		try {
+			const p = await readPlaces( file );
+			if ( ! p.length ) {
+				throw new Error( 'Filen innehåller inga platser.' );
+			}
+			setPlaces( p );
+			setMap( matchPlaces( p, reg.apiaries ).map( ( id ) => id || 'new' ) );
+		} catch ( e ) {
+			setErr( e );
+		}
+	};
+	const run = async () => {
+		setBusy( true );
+		setErr( null );
+		let upd = 0;
+		let add = 0;
+		try {
+			for ( const [ i, p ] of places.entries() ) {
+				if ( map[ i ] === 'skip' ) {
+					continue;
+				}
+				if ( map[ i ] === 'new' ) {
+					await api( 'apiaries', { method: 'POST', body: { name: p.name, lat: p.lat, lng: p.lng, active: true, notes: p.description } } );
+					add++;
+				} else {
+					await api( 'apiaries/' + map[ i ], { method: 'PUT', body: { lat: p.lat, lng: p.lng } } );
+					upd++;
+				}
+			}
+			await reg.reload();
+			toast( `${ upd } bigårdar fick position${ add ? `, ${ add } nya lades till` : '' }.` );
+			onClose();
+		} catch ( e ) {
+			setErr( e );
+			setBusy( false );
+		}
+	};
+	const taken = ( id, i ) => map.some( ( m, j ) => j !== i && m === id );
+	return (
+		<Modal
+			wide
+			title="Importera bigårdar från karta"
+			onClose={ onClose }
+			footer={
+				<>
+					<span className="nbs-spacer" />
+					<Button variant="ghost" onClick={ onClose }>Avbryt</Button>
+					<Button onClick={ run } disabled={ busy || ! places }>{ busy ? 'Sparar…' : 'Spara positionerna' }</Button>
+				</>
+			}
+		>
+			<div className="nbs-form">
+				<ErrorBox error={ err } />
+				<p className="nbs-muted">Välj en KMZ- eller KML-fil, t.ex. exporterad från Google My Maps (⋮ → Exportera till KML/KMZ) eller Google Earth. Platserna kopplas till bigårdarna efter namn – ändra kopplingen om förslaget är fel.</p>
+				<input type="file" accept=".kmz,.kml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml" onChange={ ( e ) => e.target.files[ 0 ] && pick( e.target.files[ 0 ] ) } />
+				{ places && (
+					<div className="nbs-table-wrap">
+						<table className="nbs-table">
+							<thead><tr><th>Plats i filen</th><th>Position</th><th>Blir</th></tr></thead>
+							<tbody>
+								{ places.map( ( p, i ) => (
+									<tr key={ i }>
+										<td><strong>{ p.name }</strong>{ p.description && <div className="nbs-muted">{ p.description }</div> }</td>
+										<td data-label="Position">{ String( p.lat ).replace( '.', ',' ) }, { String( p.lng ).replace( '.', ',' ) }</td>
+										<td data-label="Blir">
+											<select value={ map[ i ] } onChange={ ( e ) => setMap( ( m ) => m.map( ( x, j ) => ( j === i ? e.target.value : x ) ) ) } aria-label={ `Bigård för ${ p.name }` }>
+												<option value="new">Ny bigård: { p.name }</option>
+												<option value="skip">Hoppa över</option>
+												{ reg.apiaries.map( ( a ) => <option key={ a.id } value={ a.id } disabled={ taken( a.id, i ) }>{ a.name }{ a.lat !== null ? ' (har position, skrivs över)' : '' }</option> ) }
+											</select>
+										</td>
+									</tr>
+								) ) }
+							</tbody>
+						</table>
+					</div>
+				) }
+			</div>
+		</Modal>
 	);
 }
 
