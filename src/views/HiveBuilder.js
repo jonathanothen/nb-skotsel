@@ -132,7 +132,8 @@ export default function HiveBuilder() {
 
 	const warnings = [];
 	if ( rows.length ) {
-		const feet = [ ...new Set( rows.filter( ( r ) => r.part.kind !== 'roof' ).map( ( r ) => r.part.outer.join( '×' ) ) ) ];
+		// Botten och tak får vara större (bricka, lock); lådor och galler måste ha samma mått.
+		const feet = [ ...new Set( rows.filter( ( r ) => r.part.kind !== 'roof' && r.part.kind !== 'bottom' ).map( ( r ) => r.part.outer.join( '×' ) ) ) ];
 		if ( feet.length > 1 ) {
 			warnings.push( `Delarna har olika yttermått (${ feet.join( ', ' ) } mm) och passar inte ihop.` );
 		}

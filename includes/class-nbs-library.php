@@ -33,7 +33,9 @@ class NBS_Library {
 
 	public static function get($refresh = false) {
 		$cached = get_site_transient(self::CACHE_KEY);
-		if (!$refresh && is_array($cached)) {
+		// En nyare kopia i pluginet (efter en uppdatering) ska inte vänta på att cachen går ut.
+		$local_version = self::local_version();
+		if (!$refresh && is_array($cached) && strcmp($local_version, (string) $cached['version']) <= 0) {
 			return $cached;
 		}
 		$ref = $refresh ? self::head_sha() : 'main';
@@ -66,6 +68,12 @@ class NBS_Library {
 			return null;
 		}
 		return self::clean(json_decode(wp_remote_retrieve_body($res), true));
+	}
+
+	private static function local_version() {
+		$file = NBS_DIR . 'library/index.json';
+		$head = file_exists($file) ? (string) file_get_contents($file, false, null, 0, 400) : '';
+		return preg_match('/"version"\s*:\s*"([^"]+)"/', $head, $m) ? $m[1] : '';
 	}
 
 	private static function local() {

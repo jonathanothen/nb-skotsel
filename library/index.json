@@ -1,11 +1,15 @@
 {
  "schema": 1,
- "version": "2026-10-28.3",
+ "version": "2026-10-28.5",
  "about": "Gemensamt kupbibliotek för nb-skotsel. Mått i mm. Ramarna genereras från Fristad/3D-ramar (ramparam.py + exportera_glb.py). Delarnas mått: source = standard (beräknat från ramformatet), datablad eller uppmatt.",
  "brands": [
   {
    "id": "standard",
    "name": "Standard (inget märke)"
+  },
+  {
+   "id": "beebox",
+   "name": "BeeBox (Paradise Honey, Finland)"
   }
  ],
  "systems": [
@@ -34,6 +38,19 @@
    "frames": 10,
    "spacing": 35,
    "note": "Lådorna tar både Lågnormal- och HLS-ramar (samma längd). Kallbyggt. Mått beräknade från ramformatet tills de mätts upp."
+  },
+  {
+   "id": "beebox-ls9",
+   "name": "BeeBox Langstroth 9 ramar",
+   "brand": "beebox",
+   "footprint": [
+    525,
+    410
+   ],
+   "frameLength": 480,
+   "frames": 9,
+   "spacing": 35,
+   "note": "Lådor av vit cellplast med hårdplastkant upptill och nertill på gavlarna och plastlist i falsen. Preliminära mått uppskattade från bilder, så att 9 Farrar-ramar får plats. Ska mätas upp."
   }
  ],
  "kits": [
@@ -149,6 +166,35 @@
     },
     {
      "part": "std-ln10-tak",
+     "qty": 1
+    }
+   ]
+  },
+  {
+   "id": "kit-beebox-ls9-farrar",
+   "name": "BeeBox Farrar 1 + 2 (testkupa)",
+   "system": "beebox-ls9",
+   "stack": [
+    {
+     "part": "beebox-ls9-botten",
+     "qty": 1
+    },
+    {
+     "part": "beebox-ls9-lada-farrar",
+     "qty": 1,
+     "frames": 9
+    },
+    {
+     "part": "beebox-ls9-spargaller",
+     "qty": 1
+    },
+    {
+     "part": "beebox-ls9-lada-farrar",
+     "qty": 2,
+     "frames": 9
+    },
+    {
+     "part": "beebox-ls9-tak",
      "qty": 1
     }
    ]
@@ -359,6 +405,133 @@
    "top": 20,
    "wall": 15,
    "overlap": 60
+  },
+  {
+   "system": "beebox-ls9",
+   "brand": "beebox",
+   "source": "preliminar",
+   "note": "Preliminära mått uppskattade från bilder, så att 9 Farrar-ramar får plats. Ska mätas upp.",
+   "id": "beebox-ls9-botten",
+   "kind": "bottom",
+   "name": "BeeBox botten med nät",
+   "outer": [
+    531,
+    416
+   ],
+   "height": 45,
+   "floor": 12,
+   "wall": 14,
+   "entrance": [
+    300,
+    14
+   ],
+   "look": {
+    "body": "#fbfbf9",
+    "accent": "#e8a417",
+    "detail": "#8a8f94",
+    "screen": true,
+    "reducer": true
+   }
+  },
+  {
+   "system": "beebox-ls9",
+   "brand": "beebox",
+   "source": "preliminar",
+   "note": "Preliminära mått uppskattade från bilder, så att 9 Farrar-ramar får plats. Ska mätas upp.",
+   "id": "beebox-ls9-lada-farrar",
+   "kind": "box",
+   "name": "BeeBox låda Farrar (3/4 LS)",
+   "frame": "farrar",
+   "frames": 9,
+   "outer": [
+    525,
+    410
+   ],
+   "height": 170,
+   "wall": 33,
+   "rabbet": [
+    15,
+    12
+   ],
+   "topSpace": 2,
+   "look": {
+    "body": "#fbfbf9",
+    "accent": "#e8a417",
+    "detail": "#8a8f94",
+    "edges": 8,
+    "handles": true
+   }
+  },
+  {
+   "system": "beebox-ls9",
+   "brand": "beebox",
+   "source": "preliminar",
+   "note": "Preliminära mått uppskattade från bilder, så att 9 Farrar-ramar får plats. Ska mätas upp.",
+   "id": "beebox-ls9-lada-langstroth",
+   "kind": "box",
+   "name": "BeeBox låda Langstroth",
+   "frame": "langstroth",
+   "frames": 9,
+   "outer": [
+    525,
+    410
+   ],
+   "height": 243,
+   "wall": 33,
+   "rabbet": [
+    15,
+    12
+   ],
+   "topSpace": 2,
+   "look": {
+    "body": "#fbfbf9",
+    "accent": "#e8a417",
+    "detail": "#8a8f94",
+    "edges": 8,
+    "handles": true
+   }
+  },
+  {
+   "system": "beebox-ls9",
+   "brand": "beebox",
+   "source": "preliminar",
+   "note": "Preliminära mått uppskattade från bilder, så att 9 Farrar-ramar får plats. Ska mätas upp.",
+   "id": "beebox-ls9-spargaller",
+   "kind": "excluder",
+   "name": "BeeBox spärrgaller (plast)",
+   "outer": [
+    525,
+    410
+   ],
+   "height": 2,
+   "look": {
+    "body": "#fbfbf9",
+    "accent": "#e8a417",
+    "detail": "#2b2b2b",
+    "sheet": true
+   }
+  },
+  {
+   "system": "beebox-ls9",
+   "brand": "beebox",
+   "source": "preliminar",
+   "note": "Preliminära mått uppskattade från bilder, så att 9 Farrar-ramar får plats. Ska mätas upp.",
+   "id": "beebox-ls9-tak",
+   "kind": "roof",
+   "name": "BeeBox lock",
+   "outer": [
+    525,
+    410
+   ],
+   "height": 40,
+   "top": 40,
+   "wall": 12,
+   "look": {
+    "body": "#fbfbf9",
+    "accent": "#e8a417",
+    "detail": "#8a8f94",
+    "ribs": 7
+   }
   }
  ],
  "frames": [

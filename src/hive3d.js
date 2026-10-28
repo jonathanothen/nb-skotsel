@@ -180,8 +180,8 @@ export function stackHeight( part ) {
 	return part.kind === 'roof' ? part.top || 20 : part.height;
 }
 
-function material( kind, transparent, hi ) {
-	const m = new THREE.MeshStandardMaterial( { color: COLORS[ kind ] || COLORS.other, roughness: 0.85, metalness: 0 } );
+function material( kind, transparent, hi, color ) {
+	const m = new THREE.MeshStandardMaterial( { color: color || COLORS[ kind ] || COLORS.other, roughness: 0.85, metalness: 0 } );
 	if ( transparent ) {
 		m.transparent = true;
 		m.opacity = 0.22;
@@ -207,14 +207,38 @@ function block( g, mat, [ x0, x1 ], [ y0, y1 ], [ z0, z1 ] ) {
 	return m;
 }
 
+/** Ett rätblock med mitt, storlek och vridning runt Z (för sneda detaljer som handtag). */
+function bar( g, mat, [ cx, cy, cz ], [ sx, sy, sz ], rotZ = 0 ) {
+	const m = new THREE.Mesh( new THREE.BoxGeometry( sx, sy, sz ), mat.clone() );
+	m.position.set( cx, cy, cz );
+	m.rotation.z = rotZ;
+	m.userData.own = true;
+	g.add( m );
+	return m;
+}
+
+/**
+ * Utseende per fabrikat (part.look): body = huvudfärg, accent = plastlister, detail = handtag
+ * och nät. Utan look ritas delen som en enkel trälåda.
+ */
+function lookMaterials( part, opts ) {
+	const look = part.look || {};
+	return {
+		look,
+		accent: material( 'accent', opts.transparent, opts.hi, look.accent || 0xe8a417 ),
+		detail: material( 'detail', opts.transparent, opts.hi, look.detail || 0x8a8f94 ),
+	};
+}
+
 function buildPart( part, y0, opts ) {
 	const g = new THREE.Group();
-	const mat = material( part.kind, opts.transparent, opts.hi );
+	const mat = material( part.kind, opts.transparent, opts.hi, part.look && part.look.body );
+	const lm = lookMaterials( part, opts );
 	const [ L, W ] = part.outer;
 	const hx = L / 2;
 	const hz = W / 2;
 	if ( part.kind === 'box' ) {
-		buildBox( g, part, y0, mat, opts );
+		buildBox( g, part, y0, mat, opts, lm );
 	} else if ( part.kind === 'bottom' ) {
 		const t = part.wall || 20;
 		const fl = part.floor || 20;
@@ -231,6 +255,13 @@ function buildPart( part, y0, opts ) {
 			block( g, mat, [ hx - t, hx ], [ y0 + fl, y0 + fl + eh ], [ -hz + t, -hz + t + side ] );
 			block( g, mat, [ hx - t, hx ], [ y0 + fl, y0 + fl + eh ], [ hz - t - side, hz - t ] );
 		}
+		if ( lm.look.screen ) {
+			// Nätbotten: mörkt nät i golvet och gul flusterlist framtill.
+			block( g, lm.detail, [ -hx + t + 30, hx - t - 30 ], [ y0 + fl, y0 + fl + 1 ], [ -hz + t + 30, hz - t - 30 ] );
+		}
+		if ( lm.look.reducer ) {
+			block( g, lm.accent, [ hx - t / 2 - 4, hx - t / 2 + 4 ], [ y0 + fl, y0 + fl + eh * 0.6 ], [ -ew / 2, ew / 2 ] );
+		}
 	} else if ( part.kind === 'roof' ) {
 		const t = part.wall || 15;
 		const top = part.top || 20;
@@ -241,6 +272,17 @@ function buildPart( part, y0, opts ) {
 		block( g, mat, [ -hx, hx ], [ base, y0 ], [ hz - t, hz ] );
 		block( g, mat, [ -hx, -hx + t ], [ base, y0 ], [ -hz + t, hz - t ] );
 		block( g, mat, [ hx - t, hx ], [ base, y0 ], [ -hz + t, hz - t ] );
+		if ( lm.look.ribs ) {
+			// Räfflat lock: upphöjda ribbor på ovansidan.
+			const n = lm.look.ribs;
+			for ( let i = 0; i < n; i++ ) {
+				const z = -hz + 40 + ( i * ( W - 80 ) ) / ( n - 1 );
+				block( g, mat, [ -hx + 30, hx - 30 ], [ y0 + top, y0 + top + 5 ], [ z - 6, z + 6 ] );
+			}
+		}
+	} else if ( part.kind === 'excluder' && lm.look.sheet ) {
+		// Spärrgaller av plast: ett tunt ark utan ram.
+		block( g, lm.detail, [ -hx, hx ], [ y0, y0 + part.height ], [ -hz, hz ] );
 	} else if ( part.kind === 'excluder' ) {
 		// Spärrgaller: träram runt om och ett tunt galler i mitten.
 		const t = part.rim || 20;
@@ -258,6 +300,8 @@ function buildPart( part, y0, opts ) {
 		block( g, mat, [ -hx, hx ], [ y0, y0 + part.height ], [ -hz, hz ] );
 	}
 	mat.dispose();
+	lm.accent.dispose();
+	lm.detail.dispose();
 	return g;
 }
 
@@ -265,7 +309,7 @@ function buildPart( part, y0, opts ) {
  * Låda: långsidor över hela längden, gavlar emellan. Gavlarna har fals överst där ramarnas
  * öron vilar. Ramarna hängs i falsen med 35 mm c/c (systemets spacing), centrerade.
  */
-function buildBox( g, part, y0, mat, { frames, frameInfo, count } ) {
+function buildBox( g, part, y0, mat, { frames, frameInfo, count }, lm ) {
 	const [ L, W ] = part.outer;
 	const hx = L / 2;
 	const hz = W / 2;
@@ -273,14 +317,44 @@ function buildBox( g, part, y0, mat, { frames, frameInfo, count } ) {
 	const H = part.height;
 	const [ rw, rd ] = part.rabbet || [ 10, 10 ];
 	const top = y0 + H;
-	block( g, mat, [ -hx, hx ], [ y0, top ], [ -hz, -hz + t ] );
-	block( g, mat, [ -hx, hx ], [ y0, top ], [ hz - t, hz ] );
+	// Trälådor: långsidorna går över hela längden. Cellplastlådor (look.edges): gavlarna går över
+	// hela bredden, så att plastkanterna syns över hela gaveln.
+	const full = !! lm.look.edges;
+	const lx = full ? hx - t : hx;
+	const ez = full ? hz : hz - t;
+	block( g, mat, [ -lx, lx ], [ y0, top ], [ -hz, -hz + t ] );
+	block( g, mat, [ -lx, lx ], [ y0, top ], [ hz - t, hz ] );
 	for ( const s of [ -1, 1 ] ) {
 		const outerX = s * hx;
 		const innerX = s * ( hx - t );
 		const rabX = s * ( hx - t + rw );
-		block( g, mat, [ Math.min( outerX, innerX ), Math.max( outerX, innerX ) ], [ y0, top - rd ], [ -hz + t, hz - t ] );
-		block( g, mat, [ Math.min( outerX, rabX ), Math.max( outerX, rabX ) ], [ top - rd, top ], [ -hz + t, hz - t ] );
+		const x = ( a, b ) => [ Math.min( a, b ), Math.max( a, b ) ];
+		if ( ! lm.look.edges ) {
+			block( g, mat, x( outerX, innerX ), [ y0, top - rd ], [ -ez, ez ] );
+			block( g, mat, x( outerX, rabX ), [ top - rd, top ], [ -ez, ez ] );
+			continue;
+		}
+		// Gavel med hårdplastkant upptill och nertill och en plastlist i falsen där ramarna vilar.
+		const e = lm.look.edges;
+		block( g, lm.accent, x( outerX, innerX ), [ y0, y0 + e ], [ -ez, ez ] );
+		block( g, mat, x( outerX, innerX ), [ y0 + e, top - rd - 3 ], [ -ez, ez ] );
+		block( g, lm.accent, x( outerX, innerX ), [ top - rd - 3, top - rd ], [ -ez, ez ] );
+		block( g, mat, x( outerX, rabX ), [ top - rd, top - e ], [ -ez, ez ] );
+		block( g, lm.accent, x( outerX, rabX ), [ top - e, top ], [ -ez, ez ] );
+	}
+	if ( lm.look.handles ) {
+		// Grepp: avlångt spår i gavlarna och vinklat grepp på långsidorna (ritade som mörka fält).
+		const hy = y0 + H * 0.66;
+		for ( const s of [ -1, 1 ] ) {
+			bar( g, lm.detail, [ s * ( hx + 0.6 ), hy, 0 ], [ 1, 22, W * 0.42 ] );
+			const z = s * ( hz + 0.6 );
+			const len = L * 0.36;
+			bar( g, lm.detail, [ 0, hy, z ], [ len, 16, 1 ] );
+			const d = 0.75;
+			for ( const side of [ -1, 1 ] ) {
+				bar( g, lm.detail, [ side * ( len / 2 + 22 ), hy - 22, z ], [ 64, 16, 1 ], -side * d );
+			}
+		}
 	}
 	if ( ! frames || ! frameInfo || ! count ) {
 		return;

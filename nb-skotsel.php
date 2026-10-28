@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nordiska Bin – Skötsel
  * Description: Skötsel-CMS för biodlingen: bigårdar, samhällen, drottningar, lager, skötselkort och driftplan med egna listor och fält. Bara för inloggade användare (sidan /skotsel/).
- * Version: 1.2.1
+ * Version: 1.2.2
  * Author: Nordiska Bin
  * Plugin URI: https://github.com/jonathanothen/nb-skotsel
  * Text Domain: nb-skotsel
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-define('NBS_VERSION', '1.2.1');
+define('NBS_VERSION', '1.2.2');
 define('NBS_FILE', __FILE__);
 define('NBS_DIR', plugin_dir_path(__FILE__));
 define('NBS_URL', plugin_dir_url(__FILE__));
