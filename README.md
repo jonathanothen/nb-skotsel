@@ -9,7 +9,7 @@ Planen finns i `CMS-plan Nordiska Bin.md` i projektmappen. Byggs i faser:
 | 0 | Grund: organisationer, roller, REST-API, app, egna listor med egna fält | Klar |
 | 1 | Bigårdar, kupor, samhällen, drottningar med historik och karta | Klar |
 | 2 | Lager och material, körplanering för bigårdsbesök | Klar |
-| 3 | Skötselkort och besök | – |
+| 3 | Skötselkort (egna mallar) och besök i fält | Klar |
 | 4 | Driftplan och uppgifter | – |
 | 5–9 | Bihälsa, honung och spårbarhet, avel, ekonomi, offline | – |
 
@@ -30,6 +30,16 @@ Planen finns i `CMS-plan Nordiska Bin.md` i projektmappen. Byggs i faser:
   samhälle, bigård och pris. Bokningar som hör ihop (t.ex. en fördelning) delar `batch_id` och kan ångras.
 - `nbs_stock` – saldo per artikel och plats, uppdateras i samma transaktion. Kan byggas om från
   rörelserna (`POST /stock/rebuild`).
+
+### Skötselkort och besök (fas 3)
+
+- `nbs_templates` – skötselkorten: syfte, rutinsteg, checklista, material (lagerartikel, mängd per samhälle/bigård/besök,
+  förbrukas eller till kupan) och kupkontrollfält (samma fälttyper som listorna, plus skala; ett fält kan uppdatera styrkan).
+  Korten från driftplan.xlsx finns i `data/skotselkort.json` och läggs in med en knapp.
+- `nbs_visits` + `nbs_inspections` – besök per bigård och kupkontroll per samhälle. Sparas löpande.
+  *Avsluta besöket* bokar materialet i lagret, skriver händelsen `besok` i varje samhälles historik och uppdaterar
+  styrkan, allt i en transaktion. *Öppna igen* ångrar lagerbokningar och händelser.
+- Utskrift: `#/besok/<id>/utskrift` ger kortet som A4 med bigårdens samhällen ifyllda.
 
 ### Körplanering
 

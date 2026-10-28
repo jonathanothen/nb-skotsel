@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
  */
 class NBS_Events {
 
-	const TYPES = ['skapad', 'bildad', 'flytt', 'kupbyte', 'drottning_in', 'drottning_ut', 'delning', 'sammanslagning', 'forstarkt', 'status', 'avslutad', 'anteckning'];
+	const TYPES = ['skapad', 'bildad', 'flytt', 'kupbyte', 'drottning_in', 'drottning_ut', 'delning', 'sammanslagning', 'forstarkt', 'status', 'avslutad', 'anteckning', 'besok'];
 
 	public static function add($org_id, $type, $refs = [], $date = null, $note = '') {
 		global $wpdb;

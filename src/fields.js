@@ -5,6 +5,7 @@ export const FIELD_TYPES = [
 	[ 'text', 'Text' ],
 	[ 'textarea', 'Lång text' ],
 	[ 'number', 'Tal' ],
+	[ 'scale', 'Skala (t.ex. 1–5)' ],
 	[ 'select', 'Val ur lista' ],
 	[ 'multiselect', 'Flera val' ],
 	[ 'bool', 'Ja/nej' ],
@@ -28,6 +29,8 @@ export function formatValue( field, value, refs ) {
 			return value ? 'Ja' : 'Nej';
 		case 'number':
 			return String( value ).replace( '.', ',' ) + ( field.unit ? ' ' + field.unit : '' );
+		case 'scale':
+			return `${ value }/${ field.max || 5 }`;
 		case 'select': {
 			const hit = ( field.options || [] ).map( opt ).find( ( o ) => o[ 0 ] === value );
 			return hit ? hit[ 1 ] : String( value );
@@ -44,8 +47,8 @@ export function formatValue( field, value, refs ) {
 	}
 }
 
-export function FieldInput( { field, value, onChange, refs } ) {
-	const id = 'nbs-f-' + field.key;
+export function FieldInput( { field, value, onChange, refs, tri, idPrefix = 'nbs-f-' } ) {
+	const id = idPrefix + field.key;
 	const common = { id, name: field.key };
 	let input;
 	switch ( field.type ) {
@@ -61,6 +64,23 @@ export function FieldInput( { field, value, onChange, refs } ) {
 				</div>
 			);
 			break;
+		case 'scale': {
+			// Stora knappar som går att trycka på med handskar i bigården.
+			const min = field.min ?? 1;
+			const max = field.max ?? 5;
+			const steps = [];
+			for ( let n = min; n <= max; n++ ) {
+				steps.push( n );
+			}
+			input = (
+				<div className="nbs-scale" role="radiogroup" aria-labelledby={ id + '-l' } id={ id }>
+					{ steps.map( ( n ) => (
+						<button key={ n } type="button" role="radio" aria-checked={ Number( value ) === n } className={ Number( value ) === n ? 'is-on' : '' } onClick={ () => onChange( Number( value ) === n ? '' : n ) }>{ n }</button>
+					) ) }
+				</div>
+			);
+			break;
+		}
 		case 'select':
 			input = (
 				<select { ...common } value={ value || '' } onChange={ ( e ) => onChange( e.target.value ) }>
@@ -85,7 +105,14 @@ export function FieldInput( { field, value, onChange, refs } ) {
 			);
 			break;
 		case 'bool':
-			input = (
+			// I kupkontrollen (tri) ska "inte svarat" skiljas från "Nej".
+			input = tri ? (
+				<div className="nbs-scale nbs-yesno" role="radiogroup" aria-labelledby={ id + '-l' } id={ id }>
+					{ [ [ true, 'Ja' ], [ false, 'Nej' ] ].map( ( [ v, l ] ) => (
+						<button key={ l } type="button" role="radio" aria-checked={ value === v } className={ value === v ? 'is-on' : '' } onClick={ () => onChange( value === v ? '' : v ) }>{ l }</button>
+					) ) }
+				</div>
+			) : (
 				<label className="nbs-switch">
 					<input { ...common } type="checkbox" checked={ !! value } onChange={ ( e ) => onChange( e.target.checked ) } />
 					<span>{ value ? 'Ja' : 'Nej' }</span>
@@ -119,7 +146,7 @@ export function FieldInput( { field, value, onChange, refs } ) {
 	}
 	return (
 		<div className="nbs-field">
-			<label htmlFor={ id }>{ field.label }{ field.required && <span className="nbs-req" aria-label="obligatoriskt"> *</span> }</label>
+			<label htmlFor={ id } id={ id + '-l' }>{ field.label }{ field.required && <span className="nbs-req" aria-label="obligatoriskt"> *</span> }</label>
 			{ input }
 			{ field.help && <small className="nbs-help">{ field.help }</small> }
 		</div>

@@ -15,7 +15,7 @@ export const cleanFields = ( fields ) =>
 		options: optionsText !== undefined ? optionsText.split( ',' ).map( ( s ) => s.trim() ).filter( Boolean ) : f.options,
 	} ) );
 
-export default function FieldDefs( { fields, setFields, refLists } ) {
+export default function FieldDefs( { fields, setFields, refLists, allowMaps } ) {
 	const upd = ( i, patch ) => setFields( ( fs ) => fs.map( ( f, j ) => ( j === i ? { ...f, ...patch } : f ) ) );
 	const move = ( i, d ) =>
 		setFields( ( fs ) => {
@@ -58,6 +58,15 @@ export default function FieldDefs( { fields, setFields, refLists } ) {
 								{ refLists.map( ( l ) => <option key={ l.id } value={ l.key }>{ l.name }</option> ) }
 							</select>
 						</div>
+					) }
+					{ f.type === 'scale' && (
+						<div className="nbs-form-row">
+							<div className="nbs-field"><label>Från</label><input type="number" min="0" max="9" value={ f.min ?? 1 } onChange={ ( e ) => upd( i, { min: e.target.value } ) } /></div>
+							<div className="nbs-field"><label>Till</label><input type="number" min="1" max="10" value={ f.max ?? 5 } onChange={ ( e ) => upd( i, { max: e.target.value } ) } /></div>
+						</div>
+					) }
+					{ allowMaps && ( f.type === 'number' || f.type === 'scale' ) && (
+						<label className="nbs-inline-check"><input type="checkbox" checked={ f.maps === 'strength' } onChange={ ( e ) => upd( i, { maps: e.target.checked ? 'strength' : '' } ) } /> Uppdaterar samhällets styrka när besöket avslutas</label>
 					) }
 					{ f.type === 'number' && (
 						<div className="nbs-form-row">

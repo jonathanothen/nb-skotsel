@@ -9,7 +9,7 @@ const PHASES = [
 	[ 0, 'Grund och egna listor', 'Klar' ],
 	[ 1, 'Bigårdar, kupor, samhällen och drottningar', 'Klar' ],
 	[ 2, 'Lager och material', 'Klar' ],
-	[ 3, 'Skötselkort och besök', '' ],
+	[ 3, 'Skötselkort och besök', 'Klar' ],
 	[ 4, 'Driftplan och uppgifter', '' ],
 	[ 5, 'Bihälsa och foder', '' ],
 	[ 6, 'Honung och spårbarhet', '' ],
@@ -63,10 +63,10 @@ export default function Overview() {
 						<ol className="nbs-phases">
 							{ PHASES.map( ( [ n, label ] ) => {
 								return (
-									<li key={ n } className={ n <= 2 ? 'is-done' : '' }>
+									<li key={ n } className={ n <= 3 ? 'is-done' : '' }>
 										<span className="nbs-phase-n">{ n }</span>
 										<span>{ label }</span>
-										{ n <= 2 && <span className="nbs-badge is-ok">Klar</span> }
+										{ n <= 3 && <span className="nbs-badge is-ok">Klar</span> }
 									</li>
 								);
 							} ) }

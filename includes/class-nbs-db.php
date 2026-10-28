@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
  */
 class NBS_DB {
 
-	const DB_VERSION = '3';
+	const DB_VERSION = '4';
 
 	public static function table($name) {
 		global $wpdb;
@@ -189,6 +189,71 @@ $cols			data longtext NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (org_id,item_id,loc_type,loc_id),
 			KEY loc (org_id,loc_type,loc_id)
+		) $c;");
+
+		// ---- Fas 3: skötselkort (mallar), besök och kupkontroll per samhälle.
+		$tpl = self::table('templates');
+		dbDelta("CREATE TABLE $tpl (
+			id char(36) NOT NULL,
+			org_id char(36) NOT NULL,
+			name varchar(190) NOT NULL,
+			category_id char(36) NULL,
+			purpose text NULL,
+			steps longtext NULL,
+			checklist longtext NULL,
+			material longtext NULL,
+			fields longtext NULL,
+			sort int(11) NOT NULL DEFAULT 0,
+			archived tinyint(1) NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			created_by bigint(20) unsigned NULL,
+			PRIMARY KEY  (id),
+			KEY org_id (org_id)
+		) $c;");
+
+		$visits = self::table('visits');
+		dbDelta("CREATE TABLE $visits (
+			id char(36) NOT NULL,
+			org_id char(36) NOT NULL,
+			template_id char(36) NULL,
+			apiary_id char(36) NULL,
+			visit_date date NOT NULL,
+			status varchar(12) NOT NULL DEFAULT 'planned',
+			start_time varchar(5) NULL,
+			end_time varchar(5) NULL,
+			checked longtext NULL,
+			material longtext NULL,
+			result varchar(12) NULL,
+			deviation text NULL,
+			followup tinyint(1) NOT NULL DEFAULT 0,
+			followup_date date NULL,
+			followup_done tinyint(1) NOT NULL DEFAULT 0,
+			notes text NULL,
+			batches longtext NULL,
+			user_id bigint(20) unsigned NULL,
+			done_at datetime NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY org_date (org_id,visit_date),
+			KEY apiary (org_id,apiary_id),
+			KEY status (org_id,status)
+		) $c;");
+
+		$insp = self::table('inspections');
+		dbDelta("CREATE TABLE $insp (
+			id char(36) NOT NULL,
+			org_id char(36) NOT NULL,
+			visit_id char(36) NOT NULL,
+			colony_id char(36) NOT NULL,
+			skipped tinyint(1) NOT NULL DEFAULT 0,
+			data longtext NULL,
+			note text NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY visit_colony (visit_id,colony_id),
+			KEY colony (org_id,colony_id)
 		) $c;");
 
 		update_option('nbs_db_version', self::DB_VERSION);

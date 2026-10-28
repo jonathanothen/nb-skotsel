@@ -383,3 +383,89 @@ li.is-done .nbs-phase-n { background: $green; color: #fff; }
 	.nbs-route-grid { display: block; }
 	.nbs-card { border: 0; padding: 0; }
 }
+
+// ---- Fas 3: skötselkort och besök
+.nbs-mt { margin-top: 14px; }
+.nbs-scale { display: flex; flex-wrap: wrap; gap: 6px;
+	button { min-width: 46px; height: 46px; border-radius: 12px; border: 1px solid $line; background: #fff; color: $brown; font-weight: 700; font-size: 17px; cursor: pointer;
+		&.is-on { background: $honey; border-color: $honey-dark; color: #fff; } &:focus-visible { outline: 3px solid $honey-dark; outline-offset: 2px; } } }
+.nbs-yesno button { min-width: 70px; font-size: 15px; }
+.nbs-alert-info { background: $sand-2; border-color: $line; }
+
+.nbs-visit-list { display: grid; gap: 8px; }
+.nbs-visit-row { --nbs-accent: #{$honey-dark}; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+	background: #fff; border: 1px solid $line; border-radius: 14px; padding: 12px 16px; text-decoration: none; color: $text !important; box-shadow: inset 5px 0 0 var(--nbs-accent);
+	&:hover { box-shadow: inset 5px 0 0 var(--nbs-accent), 0 3px 10px rgba(59,42,26,.08); } }
+.nbs-visit-main { display: flex; flex-direction: column; strong { color: $brown; font-size: 16px; } }
+.nbs-visit-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.nbs-vstatus { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: $sand-2; color: $brown; text-transform: none; letter-spacing: 0;
+	&.is-ongoing { background: #F6E3BC; color: #7A5410; } &.is-done { background: #DDE8D3; color: #3A5A2C; } }
+.nbs-followup { display: grid; gap: 0; .nbs-visit-row { border-radius: 14px 14px 0 0; } }
+.nbs-followup-body { background: #fff; border: 1px solid $line; border-top: 0; border-radius: 0 0 14px 14px; padding: 4px 16px 12px; p { margin: 6px 0; } }
+
+.nbs-tpl-editor .nbs-card + .nbs-card { margin-top: 16px; }
+.nbs-mat-row, .nbs-check-row, .nbs-step-row { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed $sand; flex-wrap: wrap;
+	input, select, textarea { padding: 7px 9px; border: 1px solid $line; border-radius: 8px; background: #fff; font: inherit; } }
+.nbs-mat-row { align-items: center; select:first-child { flex: 1 1 200px; } input[type="text"]:not(.nbs-mat-qty) { flex: 2 1 200px; } }
+.nbs-mat-qty { width: 80px; text-align: right; }
+.nbs-check-row { align-items: center; input { flex: 1 1 auto; } }
+.nbs-step-body { flex: 1 1 300px; display: grid; gap: 6px; }
+.nbs-step-row .nbs-rn, .nbs-check-row .nbs-rn { flex: none; margin-top: 4px; }
+
+.nbs-visit .nbs-card + .nbs-card, .nbs-visit details + .nbs-card, .nbs-visit .nbs-card + details { margin-top: 14px; }
+.nbs-savestate { font-size: 13px; color: $text; padding: 4px 10px; border-radius: 999px; background: $sand-2;
+	&.is-saved { color: $green; } &.is-error, &.is-warn { background: #FBEDE9; color: $red; font-weight: 600; } }
+.nbs-visit-times { display: flex; gap: 16px; flex-wrap: wrap; .nbs-field { margin: 0; } input { padding: 8px 10px; border: 1px solid $line; border-radius: 10px; } }
+.nbs-fold summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
+	&::-webkit-details-marker { display: none; } &::after { content: '▾'; color: $honey-dark; font-size: 18px; } .nbs-h2 { margin: 0; } }
+.nbs-fold[open] summary { margin-bottom: 10px; &::after { content: '▴'; } }
+.nbs-pack { columns: 2; margin: 0 0 8px; padding-left: 18px; }
+.nbs-step p { margin: 2px 0 8px; }
+.nbs-checklist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; }
+.nbs-check-item { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid $line; border-radius: 12px; background: #fff; cursor: pointer;
+	input { width: 22px; height: 22px; accent-color: $honey-dark; flex: none; } &.is-on { background: $sand-2; span { text-decoration: line-through; opacity: .7; } } }
+.nbs-colony-jump { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; position: sticky; top: 52px; z-index: 5; background: #fff; padding: 6px 0;
+	a { min-width: 40px; text-align: center; padding: 6px 8px; border-radius: 10px; border: 1px solid $line; text-decoration: none; color: $brown !important; font-weight: 600;
+		&.is-done { background: #DDE8D3; border-color: #B9D0A8; } &.is-skipped { opacity: .45; } } }
+.nbs-colonies { display: grid; gap: 12px; }
+.nbs-colony-card { border: 1px solid $line; border-radius: 14px; padding: 12px 14px; scroll-margin-top: 110px;
+	&.is-done { border-color: #B9D0A8; background: #FBFDF8; } &.is-skipped { opacity: .6; }
+	header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 8px; h3 { margin: 0; font-size: 17px; } }
+	.nbs-skip { margin-left: auto; font-size: 13px; } p { margin: 0; } }
+.nbs-insp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 16px; .nbs-field { margin-bottom: 8px; } }
+.nbs-vmat { padding: 8px 0; border-bottom: 1px dashed $sand; &.is-skipped { opacity: .6; } }
+.nbs-vmat-fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 0 26px;
+	input { width: 90px; padding: 7px 9px; border: 1px solid $line; border-radius: 8px; text-align: right; } select { padding: 7px 9px; border: 1px solid $line; border-radius: 8px; max-width: 100%; } }
+.nbs-result { display: flex; gap: 18px; flex-wrap: wrap; legend { width: 100%; } label { font-size: 16px; } input { width: 20px; height: 20px; } }
+.nbs-visit-foot { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; padding: 12px 0; position: sticky; bottom: 0; background: $cream; z-index: 6; border-top: 1px solid $line; }
+
+// Utskrift av skötselkort (A4)
+.nbs-print-tools { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.nbs-sheet { background: #fff; color: #222; max-width: 800px; margin: 0 auto; padding: 32px 36px; border: 1px solid $line; font-size: 12.5px; line-height: 1.45;
+	h1 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 26px; margin: 0; color: $brown; }
+	h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: $brown; border-bottom: 2px solid $honey; padding-bottom: 3px; margin: 16px 0 6px; }
+	h3 { font-size: 13px; margin: 6px 0 2px; } p { margin: 0 0 6px; } }
+.nbs-sheet-head p { margin: 2px 0 10px; color: #666; }
+.nbs-sheet-meta, .nbs-sheet-table { width: 100%; border-collapse: collapse; th, td { border: 1px solid #bbb; padding: 5px 6px; text-align: left; vertical-align: top; } th { background: #f4ede0; font-size: 11px; text-transform: uppercase; } }
+.nbs-sheet-meta td { min-width: 80px; height: 22px; }
+.nbs-sheet-table td { height: 24px; }
+.nbs-sheet-boxes { list-style: none; padding: 0; margin: 0; li { padding: 2px 0; &::before { content: '□ '; } } }
+ol.nbs-sheet-boxes { counter-reset: none; li::before { content: '□ '; } }
+.nbs-two-col { columns: 2; column-gap: 24px; > ol { break-inside: avoid; } }
+.nbs-sheet-lines { height: 90px; background: repeating-linear-gradient(transparent, transparent 21px, #ccc 22px); }
+.nbs-sheet-foot { margin-top: 12px; }
+
+@media (max-width: 860px) {
+	.nbs-pack { columns: 1; }
+	.nbs-colony-jump { top: 46px; }
+	.nbs-insp-grid { grid-template-columns: 1fr; }
+	.nbs-yesno { flex-wrap: nowrap; button { flex: 1 1 0; } }
+	.nbs-visit-foot { bottom: 64px; }
+	.nbs-sheet { padding: 16px; }
+}
+@media print {
+	.nbs-print-tools { display: none !important; }
+	.nbs-print-page { padding: 0 !important; }
+	.nbs-sheet { border: 0; padding: 0; max-width: none; }
+	.nbs-sheet h2, .nbs-sheet-table { break-inside: avoid; }
+}

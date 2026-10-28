@@ -364,6 +364,7 @@ const EVENT_TEXT = {
 	status: 'Ändrad status',
 	avslutad: 'Avslutades',
 	anteckning: 'Anteckning',
+	besok: 'Besök',
 };
 
 function describe( e, reg, ctx ) {
@@ -398,6 +399,14 @@ function describe( e, reg, ctx ) {
 			return <>Status { st( d.from ).toLowerCase() } → { st( d.to ).toLowerCase() }{ which }</>;
 		case 'avslutad':
 			return <>{ d.to === 'sald' ? 'Såldes' : 'Dog' }{ which }</>;
+		case 'besok':
+			return (
+				<>
+					<a href={ href( 'besok/' + e.other_id ) }><strong>{ d.template || 'Besök' }</strong></a>
+					{ d.colonies !== undefined ? ` · ${ d.colonies } samhällen kontrollerade${ d.result === 'action' ? ' · åtgärd krävs' : '' }` : d.summary ? `: ${ d.summary }` : '' }
+					{ which }
+				</>
+			);
 		default:
 			return <>{ EVENT_TEXT[ e.type ] || e.type }{ which }</>;
 	}

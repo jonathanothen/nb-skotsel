@@ -9,6 +9,7 @@ import Apiaries from './views/Apiaries';
 import Colonies from './views/Colonies';
 import Queens from './views/Queens';
 import Stock from './views/Stock';
+import Visits from './views/Visits';
 import { RegisterProvider } from './register';
 
 export const MeCtx = createContext( null );
@@ -17,11 +18,11 @@ export const useMe = () => useContext( MeCtx );
 /** Moduler i menyn. De som inte är byggda än visas som "kommer". */
 export const MODULES = [
 	{ key: '', label: 'Översikt', short: 'Hem', icon: '◎' },
+	{ key: 'besok', label: 'Besök', icon: '✓' },
 	{ key: 'bigardar', label: 'Bigårdar', icon: '⌂' },
 	{ key: 'samhallen', label: 'Samhällen', icon: '⬡' },
-	{ key: 'drottningar', label: 'Drottningar', short: 'Drottn.', icon: '♛' },
+	{ key: 'drottningar', label: 'Drottningar', icon: '♛', desktopOnly: true },
 	{ key: 'lager', label: 'Lager', icon: '▤' },
-	{ key: 'besok', label: 'Besök', icon: '✓', phase: 3 },
 	{ key: 'driftplan', label: 'Driftplan', icon: '▦', phase: 4 },
 	{ key: 'listor', label: 'Listor', icon: '☰', desktopOnly: true },
 	{ key: 'installningar', label: 'Inställningar', short: 'Mer', icon: '⚙' },
@@ -55,6 +56,8 @@ function Shell() {
 		page = <Apiaries id={ route[ 1 ] } sub={ route[ 2 ] } />;
 	} else if ( current.key === 'samhallen' ) {
 		page = <Colonies id={ route[ 1 ] } />;
+	} else if ( current.key === 'besok' ) {
+		page = <Visits route={ route.slice( 1 ) } />;
 	} else if ( current.key === 'lager' ) {
 		page = <Stock route={ route.slice( 1 ) } />;
 	} else if ( current.key === 'drottningar' ) {

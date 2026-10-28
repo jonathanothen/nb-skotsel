@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
  */
 class NBS_Lists {
 
-	const FIELD_TYPES = ['text', 'textarea', 'number', 'select', 'multiselect', 'bool', 'date', 'ref', 'color', 'url'];
+	const FIELD_TYPES = ['text', 'textarea', 'number', 'scale', 'select', 'multiselect', 'bool', 'date', 'ref', 'color', 'url'];
 
 	private static function t($name) {
 		return NBS_DB::table($name);
@@ -54,6 +54,14 @@ class NBS_Lists {
 			if ($type === 'ref') {
 				$field['ref'] = sanitize_key($f['ref'] ?? '');
 			}
+			if ($type === 'scale') {
+				$field['min'] = isset($f['min']) && is_numeric($f['min']) ? max(0, (int) $f['min']) : 1;
+				$field['max'] = isset($f['max']) && is_numeric($f['max']) ? min(10, max($field['min'] + 1, (int) $f['max'])) : 5;
+			}
+			// Skötselkort: fältet kan uppdatera samhällets styrka när besöket avslutas.
+			if (in_array($type, ['number', 'scale'], true) && ($f['maps'] ?? '') === 'strength') {
+				$field['maps'] = 'strength';
+			}
 			if ($type === 'number') {
 				foreach (['min', 'max', 'step'] as $k) {
 					if (isset($f[$k]) && $f[$k] !== '' && is_numeric($f[$k])) {
@@ -86,6 +94,13 @@ class NBS_Lists {
 					}
 					$v = (float) str_replace(',', '.', (string) $v);
 					$v = floor($v) == $v ? (int) $v : $v;
+					break;
+				case 'scale':
+					if (!is_numeric($v) || (int) $v < ($f['min'] ?? 1) || (int) $v > ($f['max'] ?? 5)) {
+						$errors[] = sprintf('"%s" måste vara mellan %d och %d.', $f['label'], $f['min'] ?? 1, $f['max'] ?? 5);
+						continue 2;
+					}
+					$v = (int) $v;
 					break;
 				case 'bool':
 					$v = (bool) $v;

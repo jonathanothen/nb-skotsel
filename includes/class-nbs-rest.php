@@ -242,6 +242,50 @@ class NBS_Rest {
 			}));
 		}, 'can_manage');
 
+		// ---- Skötselkort och besök (fas 3)
+		self::route('/templates', 'GET', function () use ($org) {
+			return NBS_Visits::templates($org());
+		});
+		self::route('/templates', 'POST', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Visits::save_template($org(), $r->get_json_params() ?: []));
+		}, 'can_write');
+		self::route('/templates/(?P<id>[0-9a-f-]{36})', 'PUT', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Visits::save_template($org(), $r->get_json_params() ?: [], $r->get_url_params()['id']));
+		}, 'can_write');
+		self::route('/templates/(?P<id>[0-9a-f-]{36})', 'DELETE', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Visits::delete_template($org(), $r->get_url_params()['id']));
+		}, 'can_manage');
+		self::route('/templates/examples', 'POST', function () use ($org) {
+			return ['added' => NBS_Visits::import_examples($org())];
+		}, 'can_manage');
+		self::route('/visits', 'GET', function (WP_REST_Request $r) use ($org) {
+			return NBS_Visits::visits($org(), $r->get_query_params());
+		});
+		self::route('/visits', 'POST', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Visits::create($org(), $r->get_json_params() ?: []));
+		}, 'can_write');
+		self::route('/visits/(?P<id>[0-9a-f-]{36})', 'GET', function (WP_REST_Request $r) use ($org) {
+			$v = NBS_Visits::visit($org(), $r->get_url_params()['id']);
+			return $v ?: new WP_Error('nbs_404', 'Besöket finns inte.', ['status' => 404]);
+		});
+		self::route('/visits/(?P<id>[0-9a-f-]{36})', 'PUT', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Visits::save($org(), $r->get_url_params()['id'], $r->get_json_params() ?: []));
+		}, 'can_write');
+		self::route('/visits/(?P<id>[0-9a-f-]{36})', 'DELETE', function (WP_REST_Request $r) use ($org) {
+			$id = $r->get_url_params()['id'];
+			return self::out(NBS_Ops::tx(function () use ($org, $id) {
+				return NBS_Visits::delete($org(), $id);
+			}));
+		}, 'can_write');
+		foreach (['complete', 'reopen'] as $action) {
+			self::route('/visits/(?P<id>[0-9a-f-]{36})/' . $action, 'POST', function (WP_REST_Request $r) use ($org, $action) {
+				$id = $r->get_url_params()['id'];
+				return self::out(NBS_Ops::tx(function () use ($org, $id, $action) {
+					return call_user_func(['NBS_Visits', $action], $org(), $id);
+				}));
+			}, 'can_write');
+		}
+
 		// ---- Kortlänkar från Google Maps (maps.app.goo.gl) → slutadress med koordinater.
 		self::route('/geo/resolve', 'POST', [__CLASS__, 'resolve_map_link'], 'can_write');
 
@@ -304,7 +348,7 @@ class NBS_Rest {
 			global $wpdb;
 			$o   = $org();
 			$out = ['exported_at' => gmdate('c'), 'version' => NBS_VERSION, 'org' => NBS_Auth::current()];
-			foreach (['lists', 'list_items', 'apiaries', 'hives', 'colonies', 'queens', 'events', 'stock_tx', 'stock'] as $t) {
+			foreach (['lists', 'list_items', 'apiaries', 'hives', 'colonies', 'queens', 'events', 'stock_tx', 'stock', 'templates', 'visits', 'inspections'] as $t) {
 				$out[$t] = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . NBS_DB::table($t) . ' WHERE org_id = %s', $o), ARRAY_A);
 			}
 			return $out;
