@@ -10,8 +10,12 @@ Planen finns i `CMS-plan Nordiska Bin.md` i projektmappen. Byggs i faser:
 | 1 | Bigårdar, kupor, samhällen, drottningar med historik och karta | Klar |
 | 2 | Lager och material, körplanering för bigårdsbesök | Klar |
 | 3 | Skötselkort (egna mallar) och besök i fält | Klar |
-| 4 | Driftplan och uppgifter | – |
-| 5–9 | Bihälsa, honung och spårbarhet, avel, ekonomi, offline | – |
+| 4 | Driftplan: årsplan, dragkalender, veckans arbete per slinga | Klar |
+| 5 | Bihälsa och foder | Klar |
+| 6 | Honung och spårbarhet, HACCP | Klar |
+| 7 | Avel och drottningodling | Klar |
+| 8 | Ekonomi och nyckeltal | Klar |
+| 9 | Offline (PWA), QR-koder, Excel-export och -import | Klar |
 
 ### Datamodell (fas 1)
 
@@ -40,6 +44,24 @@ Planen finns i `CMS-plan Nordiska Bin.md` i projektmappen. Byggs i faser:
   *Avsluta besöket* bokar materialet i lagret, skriver händelsen `besok` i varje samhälles historik och uppdaterar
   styrkan, allt i en transaktion. *Öppna igen* ångrar lagerbokningar och händelser.
 - Utskrift: `#/besok/<id>/utskrift` ger kortet som A4 med bigårdens samhällen ifyllda.
+
+### Fas 4–8: generiska register
+
+Driftplan (`plan`), bihälsa (`health`), partier (`batch`), tappningar (`fill`), leveranser (`delivery`),
+egenkontroll (`haccp`), bedömningar (`evaluation`), odlingsserier (`rearing`), budget, utfall (`ledger`) och
+investeringar definieras i `NBS_Entities::TYPES` och nås via `/r/<typ>` – samma validering, ändringslogg och
+egna fält som övriga register. Logik som går utöver det ligger i `NBS_Domain`: import av driftplanen
+(`data/driftplan.json`), avbockning per år, behandling av flera samhällen med lageruttag, foder i torrsubstans
+per samhälle, partikoder (ÅR-BIGÅRD-NR), tappning med burkar från lagret och ekonomi med nyckeltal.
+
+### Fas 9: fält och export
+
+- `/skotsel/sw.js` (`assets/sw.js`) och `/skotsel/manifest.webmanifest`: appen kan läggas på hemskärmen och
+  visar senast hämtade uppgifter utan täckning. Besök sparas i telefonen (localStorage) tills servern tagit emot dem.
+  Allt sparat töms vid utloggning.
+- QR-etiketter för kuporna (Samhällen → Kupor) öppnar `#/kupa/<id>` → samhället i kupan.
+- Excel: export av alla register (Inställningar → Export) och import av samhällen genom att klistra in rader.
+- KML/KMZ-import av bigårdarnas positioner (Bigårdar → Importera karta).
 
 ### Körplanering
 

@@ -1,8 +1,8 @@
 {
   "name": "nb-skotsel",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "SkÃƒÆ’Ã‚Â¶tsel-CMS fÃƒÆ’Ã‚Â¶r Nordiska Bin (WordPress-plugin)",
+  "description": "SkÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶tsel-CMS fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶r Nordiska Bin (WordPress-plugin)",
   "scripts": {
     "build": "wp-scripts build src/index.js --output-path=build",
     "start": "wp-scripts start src/index.js --output-path=build"
@@ -11,6 +11,7 @@
     "@wordpress/scripts": "36.1.0"
   },
   "dependencies": {
-    "leaflet": "^1.9.4"
+    "leaflet": "^1.9.4",
+    "qrcode-generator": "^1.4.4"
   }
 }

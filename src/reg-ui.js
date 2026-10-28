@@ -60,7 +60,7 @@ export function CustomValues( { fields, data, refs } ) {
 /* ------------------------------------------------------------------ Formulär */
 
 const ROUTES = { apiary: 'apiaries', hive: 'hives', colony: 'colonies', queen: 'queens' };
-export const TYPE_NAMES = { apiary: 'bigård', hive: 'kupa', colony: 'samhälle', queen: 'drottning' };
+export const TYPE_NAMES = { apiary: 'bigård', hive: 'kupa', colony: 'samhälle', queen: 'drottning', plan: 'aktivitet i driftplanen', health: 'bihälsopost', batch: 'honungsparti', delivery: 'leverans', haccp: 'egenkontroll', evaluation: 'bedömning', rearing: 'odlingsserie' };
 
 /** Fasta fält per typ, i samma format som egna fält så att FieldInput kan rita dem. */
 function builtIn( type, item ) {
@@ -301,10 +301,10 @@ function GeoInput( { onFound } ) {
 
 /* ------------------------------------------------------------------ Egna fält */
 
-export function FieldsModal( { type, onClose } ) {
+export function FieldsModal( { type, onClose, initial, onSaved } ) {
 	const reg = useRegister();
 	const toast = useToast();
-	const [ fields, setFields ] = useState( () => withIds( reg.fields[ type ] ) );
+	const [ fields, setFields ] = useState( () => withIds( initial || reg.fields[ type ] ) );
 	const [ busy, setBusy ] = useState( false );
 	const [ err, setErr ] = useState( null );
 	const refLists = [
@@ -319,7 +319,7 @@ export function FieldsModal( { type, onClose } ) {
 		setErr( null );
 		try {
 			await api( 'fields/' + type, { method: 'PUT', body: { fields: cleanFields( fields ) } } );
-			await reg.reload();
+			await ( onSaved ? onSaved() : reg.reload() );
 			toast( 'Fälten sparades.' );
 			onClose();
 		} catch ( e ) {

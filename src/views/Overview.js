@@ -10,12 +10,12 @@ const PHASES = [
 	[ 1, 'Bigårdar, kupor, samhällen och drottningar', 'Klar' ],
 	[ 2, 'Lager och material', 'Klar' ],
 	[ 3, 'Skötselkort och besök', 'Klar' ],
-	[ 4, 'Driftplan och uppgifter', '' ],
-	[ 5, 'Bihälsa och foder', '' ],
-	[ 6, 'Honung och spårbarhet', '' ],
-	[ 7, 'Avel och drottningodling', '' ],
-	[ 8, 'Ekonomi', '' ],
-	[ 9, 'Fält, offline och export', '' ],
+	[ 4, 'Driftplan och uppgifter', 'Klar' ],
+	[ 5, 'Bihälsa och foder', 'Klar' ],
+	[ 6, 'Honung och spårbarhet', 'Klar' ],
+	[ 7, 'Avel och drottningodling', 'Klar' ],
+	[ 8, 'Ekonomi', 'Klar' ],
+	[ 9, 'Fält, offline och export', 'Klar' ],
 ];
 
 export default function Overview() {
@@ -63,10 +63,10 @@ export default function Overview() {
 						<ol className="nbs-phases">
 							{ PHASES.map( ( [ n, label ] ) => {
 								return (
-									<li key={ n } className={ n <= 3 ? 'is-done' : '' }>
+									<li key={ n } className={ n <= 9 ? 'is-done' : '' }>
 										<span className="nbs-phase-n">{ n }</span>
 										<span>{ label }</span>
-										{ n <= 3 && <span className="nbs-badge is-ok">Klar</span> }
+										{ n <= 9 && <span className="nbs-badge is-ok">Klar</span> }
 									</li>
 								);
 							} ) }

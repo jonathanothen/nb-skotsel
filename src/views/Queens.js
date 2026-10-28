@@ -6,6 +6,7 @@ import { useRegister, QUEEN_ACTIVE, QUEEN_STATUS, MATING, label, today } from '.
 import { Loading, ErrorBox, Button, Modal, Empty, useToast } from '../ui';
 import { FieldInput } from '../fields';
 import { EntityForm, FieldsModal, History, QueenBadge, StatusBadge, CustomValues } from '../reg-ui';
+import { QueenEvaluations } from './Breeding';
 
 export default function Queens( { id } ) {
 	const reg = useRegister();
@@ -196,6 +197,8 @@ function QueenDetail( { id } ) {
 					) }
 				</section>
 			</div>
+
+			<QueenEvaluations queen={ q } />
 
 			<History filter={ { queen_id: id } } ctx="queen" stamp={ q.updated_at + q.colony_id + q.status } />
 

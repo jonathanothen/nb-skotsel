@@ -1,10 +1,12 @@
 import { useState, useEffect } from '@wordpress/element';
-import { api, uuid } from '../api';
+import { api, uuid, config } from '../api';
+import qrcode from 'qrcode-generator';
 import { href, go } from '../router';
 import { useMe } from '../App';
 import { useRegister, COLONY_ACTIVE, COLONY_STATUS, QUEEN_STATUS, QUEEN_ACTIVE, MATING, label, today, fmtDate } from '../register';
 import { useLoad, Loading, ErrorBox, Button, Modal, Empty, useToast } from '../ui';
 import { useStock, StockModal, TxTable, Contents, consumption, fmtQty, fmtKr, unit } from '../stock';
+import { ColonyHealth } from './Health';
 import { FieldInput } from '../fields';
 import { EntityForm, FieldsModal, History, QueenBadge, StatusBadge, CustomValues, DateNote } from '../reg-ui';
 
@@ -44,6 +46,7 @@ function ColonyList() {
 	const [ status, setStatus ] = useState( 'aktiva' );
 	const [ editing, setEditing ] = useState( null );
 	const [ fieldsOpen, setFieldsOpen ] = useState( false );
+	const [ importing, setImporting ] = useState( false );
 
 	const s = q.trim().toLowerCase();
 	const list = reg.colonies
@@ -79,6 +82,7 @@ function ColonyList() {
 				</div>
 				<div className="nbs-row-actions">
 					{ me.can.manage && <Button variant="ghost" onClick={ () => setFieldsOpen( true ) }>Egna fält</Button> }
+					{ me.can.write && <Button variant="ghost" onClick={ () => setImporting( true ) }>Importera från Excel</Button> }
 					{ me.can.write && <Button onClick={ () => setEditing( {} ) }>+ Nytt samhälle</Button> }
 				</div>
 			</header>
@@ -128,7 +132,100 @@ function ColonyList() {
 			) }
 			{ editing && <EntityForm type="colony" item={ editing } preset={ apiary && apiary !== '-' ? { apiary_id: apiary } : {} } onClose={ () => setEditing( null ) } onSaved={ ( c ) => go( 'samhallen/' + c.id ) } /> }
 			{ fieldsOpen && <FieldsModal type="colony" onClose={ () => setFieldsOpen( false ) } /> }
+			{ importing && <ImportModal onClose={ () => setImporting( false ) } /> }
 		</div>
+	);
+}
+
+/* ------------------------------------------------------------------ Import från Excel */
+
+const IMPORT_COLS = [ 'Samhälle', 'Bigård', 'Kupa', 'Drottning', 'År', 'Styrka', 'Status' ];
+
+/** Tolkar inklistrade rader (tabb från Excel, eller semikolon/komma från CSV). */
+function parsePaste( text ) {
+	const lines = text.split( /\r?\n/ ).map( ( l ) => l.trim() ).filter( Boolean );
+	if ( ! lines.length ) {
+		return [];
+	}
+	const sep = lines[ 0 ].includes( '\t' ) ? '\t' : lines[ 0 ].includes( ';' ) ? ';' : ',';
+	const rows = lines.map( ( l ) => l.split( sep ).map( ( c ) => c.trim().replace( /^"|"$/g, '' ) ) );
+	// Rubrikrad hoppas över om första cellen inte är ett nummer/kod som ser ut som data.
+	if ( /^(samh|nr|kod|nummer)/i.test( rows[ 0 ][ 0 ] ) ) {
+		rows.shift();
+	}
+	return rows.filter( ( r ) => r[ 0 ] );
+}
+
+function ImportModal( { onClose } ) {
+	const reg = useRegister();
+	const toast = useToast();
+	const [ text, setText ] = useState( '' );
+	const [ busy, setBusy ] = useState( false );
+	const [ err, setErr ] = useState( null );
+	const rows = parsePaste( text );
+	const norm = ( s ) => String( s || '' ).trim().toLowerCase();
+	const apiaryOf = ( n ) => reg.apiaries.find( ( a ) => norm( a.name ) === norm( n ) || ( a.code && norm( a.code ) === norm( n ) ) );
+	const statusOf = ( s ) => ( COLONY_STATUS.find( ( x ) => norm( x[ 1 ] ) === norm( s ) || x[ 0 ] === norm( s ) ) || [ 'produktion' ] )[ 0 ];
+	const exists = ( code ) => reg.colonies.some( ( c ) => norm( c.code ) === norm( code ) );
+	const preview = rows.map( ( r ) => ( { code: r[ 0 ], apiary: apiaryOf( r[ 1 ] ), apiaryName: r[ 1 ], hive: r[ 2 ], queen: r[ 3 ], year: r[ 4 ], strength: r[ 5 ], status: statusOf( r[ 6 ] ), skip: exists( r[ 0 ] ) } ) );
+	const run = async () => {
+		setBusy( true );
+		setErr( null );
+		let n = 0;
+		try {
+			const hives = Object.fromEntries( reg.hives.map( ( h ) => [ norm( h.label ), h.id ] ) );
+			const queens = Object.fromEntries( reg.queens.map( ( q ) => [ norm( q.code ), q.id ] ) );
+			for ( const p of preview.filter( ( x ) => ! x.skip ) ) {
+				let hive = null;
+				if ( p.hive ) {
+					hive = hives[ norm( p.hive ) ] || ( await api( 'hives', { method: 'POST', body: { id: uuid(), label: p.hive, active: true } } ) ).id;
+					hives[ norm( p.hive ) ] = hive;
+				}
+				let queen = null;
+				if ( p.queen ) {
+					queen = queens[ norm( p.queen ) ] || ( await api( 'queens', { method: 'POST', body: { id: uuid(), code: p.queen, year: Number( p.year ) || null, status: 'parad' } } ) ).id;
+					queens[ norm( p.queen ) ] = queen;
+				}
+				await api( 'colonies', { method: 'POST', body: { id: uuid(), code: p.code, apiary_id: p.apiary ? p.apiary.id : null, hive_id: hive, queen_id: queen, strength: Number( p.strength ) || null, status: p.status } } );
+				n++;
+			}
+			await reg.reload();
+			toast( `${ n } samhällen importerades.` );
+			onClose();
+		} catch ( e ) {
+			await reg.reload();
+			setErr( new Error( `${ n } samhällen importerades innan felet: ${ e.message }` ) );
+			setBusy( false );
+		}
+	};
+	const todo = preview.filter( ( p ) => ! p.skip ).length;
+	return (
+		<Modal wide title="Importera samhällen från Excel" onClose={ onClose } footer={ <><span className="nbs-spacer" /><Button variant="ghost" onClick={ onClose }>Avbryt</Button><Button onClick={ run } disabled={ busy || ! todo }>{ busy ? 'Importerar…' : `Importera ${ todo } samhällen` }</Button></> }>
+			<div className="nbs-form">
+				<ErrorBox error={ err } />
+				<p className="nbs-muted">Markera raderna i Excel och klistra in här. Kolumnordning: <strong>{ IMPORT_COLS.join( ' · ' ) }</strong>. Bara samhälle är obligatoriskt. Kupor och drottningar som saknas skapas; samhällen som redan finns hoppas över.</p>
+				<textarea rows={ 6 } value={ text } onChange={ ( e ) => setText( e.target.value ) } placeholder={ '1\tGäddviken\t1\t26-001\t2026\t4\tProduktion\n2\tGäddviken\t2\t\t\t3' } aria-label="Inklistrade rader" className="nbs-paste" />
+				{ preview.length > 0 && (
+					<div className="nbs-table-wrap">
+						<table className="nbs-table">
+							<thead><tr><th>Samhälle</th><th>Bigård</th><th>Kupa</th><th>Drottning</th><th>Styrka</th><th>Status</th></tr></thead>
+							<tbody>
+								{ preview.map( ( p, i ) => (
+									<tr key={ i } className={ p.skip ? 'is-inactive' : '' }>
+										<td>{ p.code }{ p.skip && <span className="nbs-badge">Finns redan</span> }</td>
+										<td data-label="Bigård">{ p.apiary ? p.apiary.name : p.apiaryName ? <span className="nbs-warn-inline">{ p.apiaryName } (finns inte)</span> : '–' }</td>
+										<td data-label="Kupa">{ p.hive || '–' }</td>
+										<td data-label="Drottning">{ p.queen ? `${ p.queen }${ p.year ? ' (' + p.year + ')' : '' }` : '–' }</td>
+										<td data-label="Styrka">{ p.strength || '–' }</td>
+										<td data-label="Status">{ label( COLONY_STATUS, p.status ) }</td>
+									</tr>
+								) ) }
+							</tbody>
+						</table>
+					</div>
+				) }
+			</div>
+		</Modal>
 	);
 }
 
@@ -204,6 +301,8 @@ function ColonyDetail( { id } ) {
 					) }
 				</section>
 			</div>
+
+			<ColonyHealth colonyId={ c.id } />
 
 			<ColonyMaterial c={ c } />
 
@@ -551,6 +650,7 @@ function Hives() {
 	const [ series, setSeries ] = useState( false );
 	const [ fieldsOpen, setFieldsOpen ] = useState( false );
 	const [ showAll, setShowAll ] = useState( false );
+	const [ labels, setLabels ] = useState( false );
 	const [ stock ] = useStock();
 	// Kupans delar enligt lagret: "2 × Låda 9 ramar, 1 × Botten".
 	const parts = ( h ) => ( stock ? stock.inLoc( { type: 'hive', id: h.id } ).map( ( b ) => `${ fmtQty( b.qty ) } × ${ stock.item[ b.item_id ] ? stock.item[ b.item_id ].name : '?' }` ).join( ', ' ) : '' );
@@ -558,6 +658,9 @@ function Hives() {
 	reg.activeColonies.forEach( ( c ) => c.hive_id && ( user[ c.hive_id ] = c ) );
 	const list = reg.hives.filter( ( h ) => showAll || h.active ).sort( ( a, b ) => a.label.localeCompare( b.label, 'sv', { numeric: true } ) );
 	const free = reg.hives.filter( ( h ) => h.active && ! user[ h.id ] ).length;
+	if ( labels ) {
+		return <QrLabels hives={ list.filter( ( h ) => h.active ) } onClose={ () => setLabels( false ) } />;
+	}
 
 	return (
 		<div className="nbs-page">
@@ -568,6 +671,7 @@ function Hives() {
 				</div>
 				<div className="nbs-row-actions">
 					{ me.can.manage && <Button variant="ghost" onClick={ () => setFieldsOpen( true ) }>Egna fält</Button> }
+					{ reg.hives.length > 0 && <Button variant="ghost" onClick={ () => setLabels( true ) }>QR-etiketter</Button> }
 					{ me.can.write && <Button variant="ghost" onClick={ () => setSeries( true ) }>Lägg till en serie</Button> }
 					{ me.can.write && <Button onClick={ () => setEditing( {} ) }>+ Ny kupa</Button> }
 				</div>
@@ -607,6 +711,38 @@ function Hives() {
 			{ editing && <EntityForm type="hive" item={ editing } onClose={ () => setEditing( null ) } /> }
 			{ series && <HiveSeries onClose={ () => setSeries( false ) } toast={ toast } /> }
 			{ fieldsOpen && <FieldsModal type="hive" onClose={ () => setFieldsOpen( false ) } /> }
+		</div>
+	);
+}
+
+/**
+ * QR-etiketter för kuporna (A4, tre i bredd). Koden öppnar #/kupa/<id>, som visar
+ * samhället som står i kupan – skanna med mobilkameran i bigården.
+ */
+function QrLabels( { hives, onClose } ) {
+	const base = window.location.origin + ( config.base && config.base !== 'admin' ? config.base.replace( /\/?$/, '/' ) : '/skotsel/' );
+	const svg = ( text ) => {
+		const qr = qrcode( 0, 'M' );
+		qr.addData( text );
+		qr.make();
+		return qr.createSvgTag( { cellSize: 4, margin: 0, scalable: true } );
+	};
+	return (
+		<div className="nbs-page nbs-print-page">
+			<div className="nbs-print-tools">
+				<button type="button" className="nbs-link-btn" onClick={ onClose }>← Kupor</button>
+				<Button onClick={ () => window.print() }>Skriv ut</Button>
+			</div>
+			<p className="nbs-muted nbs-print-hide">Skriv ut på etikettark eller vanligt papper och tejpa/laminera. Kameran i mobilen öppnar samhället direkt när du är inloggad.</p>
+			<div className="nbs-qr-sheet">
+				{ hives.map( ( h ) => (
+					<div key={ h.id } className="nbs-qr-label">
+						{ /* QR-koden byggs av kupans id, inte av användarinmatning. */ }
+						<span className="nbs-qr" dangerouslySetInnerHTML={ { __html: svg( base + '#/kupa/' + h.id ) } } />
+						<span className="nbs-qr-text"><strong>Kupa { h.label }</strong><small>{ config.site || '' }</small></span>
+					</div>
+				) ) }
+			</div>
 		</div>
 	);
 }

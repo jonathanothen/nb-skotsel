@@ -522,10 +522,65 @@ function VisitPage( { id } ) {
 	const timer = useRef();
 	const pending = useRef( {} );
 
+	// Osparade ändringar ligger kvar i telefonen (localStorage) tills servern har tagit emot dem,
+	// även om appen stängs utan täckning.
+	const DRAFT = 'nbs_visit_draft_' + id;
+	const saveDraft = () => {
+		try {
+			if ( Object.keys( pending.current ).length ) {
+				localStorage.setItem( DRAFT, JSON.stringify( pending.current ) );
+			} else {
+				localStorage.removeItem( DRAFT );
+			}
+		} catch ( e ) {
+			/* privat läge */
+		}
+	};
+
 	useEffect( () => {
-		api( 'visits/' + id ).then( setV, setErr );
-		return () => clearTimeout( timer.current );
-	}, [ id ] );
+		let draft = null;
+		try {
+			draft = JSON.parse( localStorage.getItem( DRAFT ) || 'null' );
+		} catch ( e ) {
+			draft = null;
+		}
+		// Skickar det som ligger i kö; försöker igen tills det går igenom.
+		const push = () => {
+			const body = pending.current;
+			if ( ! Object.keys( body ).length ) {
+				return;
+			}
+			setSaveState( 'saving' );
+			api( 'visits/' + id, { method: 'PUT', body } ).then(
+				( r ) => {
+					pending.current = {};
+					saveDraft();
+					setSaveState( 'saved' );
+					setV( ( x ) => ( x ? { ...x, status: r.status } : x ) );
+				},
+				() => {
+					setSaveState( 'error' );
+					timer.current = setTimeout( push, 8000 );
+				}
+			);
+		};
+		api( 'visits/' + id ).then( ( visit ) => {
+			if ( draft && visit.status !== 'done' ) {
+				const ins = Object.fromEntries( ( visit.inspections || [] ).map( ( i ) => [ i.colony_id, i ] ) );
+				( draft.inspections || [] ).forEach( ( i ) => ( ins[ i.colony_id ] = i ) );
+				const { inspections, ...rest } = draft;
+				visit = { ...visit, ...rest, inspections: Object.values( ins ) };
+				pending.current = draft;
+				push();
+			}
+			setV( visit );
+		}, setErr );
+		window.addEventListener( 'online', push );
+		return () => {
+			clearTimeout( timer.current );
+			window.removeEventListener( 'online', push );
+		};
+	}, [ id ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Material fylls i från kortet första gången (när lagret har laddats).
 	useEffect( () => {
@@ -556,6 +611,7 @@ function VisitPage( { id } ) {
 	// Sparar ändringar efter en kort paus (eller direkt med flush).
 	const queue = ( patch ) => {
 		pending.current = { ...pending.current, ...patch };
+		saveDraft();
 		setSaveState( 'dirty' );
 		clearTimeout( timer.current );
 		timer.current = setTimeout( flush, 1200 );
@@ -570,6 +626,7 @@ function VisitPage( { id } ) {
 		setSaveState( 'saving' );
 		try {
 			const r = await api( 'visits/' + id, { method: 'PUT', body } );
+			saveDraft();
 			setV( ( x ) => ( { ...x, status: r.status } ) );
 			setSaveState( r.warnings ? 'warn' : 'saved' );
 			if ( r.warnings ) {
@@ -578,6 +635,7 @@ function VisitPage( { id } ) {
 			return true;
 		} catch ( e ) {
 			pending.current = { ...body, ...pending.current };
+			saveDraft();
 			setSaveState( 'error' );
 			timer.current = setTimeout( flush, 5000 );
 			return false;

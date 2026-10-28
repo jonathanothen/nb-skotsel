@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
  */
 class NBS_DB {
 
-	const DB_VERSION = '4';
+	const DB_VERSION = '5';
 
 	public static function table($name) {
 		global $wpdb;

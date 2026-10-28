@@ -286,6 +286,70 @@ class NBS_Rest {
 			}, 'can_write');
 		}
 
+		// ---- Register för fas 4–8 (samma motor som bigårdar och samhällen): /r/<typ>
+		$generic = 'plan|health|batch|fill|delivery|haccp|evaluation|rearing|budget|ledger|investment';
+		self::route("/r/(?P<type>$generic)", 'GET', function (WP_REST_Request $r) use ($org) {
+			return NBS_Entities::query($org(), $r->get_url_params()['type'], $r->get_query_params());
+		});
+		self::route("/r/(?P<type>$generic)", 'POST', function (WP_REST_Request $r) use ($org) {
+			$type = $r->get_url_params()['type'];
+			$body = $r->get_json_params() ?: [];
+			return self::out(NBS_Ops::tx(function () use ($org, $type, $body) {
+				return $type === 'fill' ? NBS_Domain::fill_create($org(), $body) : NBS_Entities::save($org(), $type, $body);
+			}));
+		}, 'can_write');
+		self::route("/r/(?P<type>$generic)/(?P<id>[0-9a-f-]{36})", 'PUT', function (WP_REST_Request $r) use ($org) {
+			$p    = $r->get_url_params();
+			$body = $r->get_json_params() ?: [];
+			unset($body['stock_batch']);
+			return self::out(NBS_Ops::tx(function () use ($org, $p, $body) {
+				return NBS_Entities::save($org(), $p['type'], $body, $p['id']);
+			}));
+		}, 'can_write');
+		self::route("/r/(?P<type>$generic)/(?P<id>[0-9a-f-]{36})", 'DELETE', function (WP_REST_Request $r) use ($org) {
+			$p = $r->get_url_params();
+			return self::out(NBS_Ops::tx(function () use ($org, $p) {
+				if ($p['type'] === 'fill') {
+					return NBS_Domain::fill_delete($org(), $p['id']);
+				}
+				if ($p['type'] === 'health') {
+					return NBS_Domain::health_delete($org(), $p['id']);
+				}
+				return NBS_Entities::delete($org(), $p['type'], $p['id']);
+			}));
+		}, 'can_write');
+		self::route('/fields/(?P<type>plan|health|batch|delivery|haccp|evaluation|rearing)', 'PUT', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Entities::save_fields($org(), $r->get_url_params()['type'], (array) ($r['fields'] ?? [])));
+		}, 'can_manage');
+		self::route('/modules', 'GET', function () use ($org) {
+			NBS_Starter::ensure_system_lists($org());
+			return ['settings' => NBS_Domain::settings($org()), 'fields' => NBS_Entities::all_fields($org())];
+		});
+		self::route('/modules', 'PUT', function (WP_REST_Request $r) use ($org) {
+			return NBS_Domain::save_settings($org(), $r->get_json_params() ?: []);
+		}, 'can_manage');
+		self::route('/plan/import', 'POST', function () use ($org) {
+			return ['added' => NBS_Domain::plan_import($org())];
+		}, 'can_manage');
+		self::route('/plan/(?P<id>[0-9a-f-]{36})/done', 'POST', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Domain::plan_done($org(), $r->get_url_params()['id'], (int) $r['year'], !empty($r['done'])));
+		}, 'can_write');
+		self::route('/health/bulk', 'POST', function (WP_REST_Request $r) use ($org) {
+			$body = $r->get_json_params() ?: [];
+			return self::out(NBS_Ops::tx(function () use ($org, $body) {
+				return NBS_Domain::health_bulk($org(), $body);
+			}));
+		}, 'can_write');
+		self::route('/feed', 'GET', function (WP_REST_Request $r) use ($org) {
+			return NBS_Domain::feed($org(), (int) ($r['year'] ?: current_time('Y')));
+		});
+		self::route('/batch-code', 'GET', function (WP_REST_Request $r) use ($org) {
+			return ['code' => NBS_Domain::batch_code($org(), (string) $r['apiary_id'], (int) ($r['year'] ?: current_time('Y')))];
+		});
+		self::route('/economy', 'GET', function (WP_REST_Request $r) use ($org) {
+			return NBS_Domain::economy($org(), (int) ($r['year'] ?: current_time('Y')));
+		});
+
 		// ---- Kortlänkar från Google Maps (maps.app.goo.gl) → slutadress med koordinater.
 		self::route('/geo/resolve', 'POST', [__CLASS__, 'resolve_map_link'], 'can_write');
 
@@ -348,7 +412,7 @@ class NBS_Rest {
 			global $wpdb;
 			$o   = $org();
 			$out = ['exported_at' => gmdate('c'), 'version' => NBS_VERSION, 'org' => NBS_Auth::current()];
-			foreach (['lists', 'list_items', 'apiaries', 'hives', 'colonies', 'queens', 'events', 'stock_tx', 'stock', 'templates', 'visits', 'inspections'] as $t) {
+			foreach (['lists', 'list_items', 'apiaries', 'hives', 'colonies', 'queens', 'events', 'stock_tx', 'stock', 'templates', 'visits', 'inspections', 'plan', 'health', 'batches', 'fills', 'deliveries', 'haccp', 'evaluations', 'rearing', 'budget', 'ledger', 'investments'] as $t) {
 				$out[$t] = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . NBS_DB::table($t) . ' WHERE org_id = %s', $o), ARRAY_A);
 			}
 			return $out;

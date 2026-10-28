@@ -57,6 +57,45 @@ class NBS_Starter {
 			'markfarger'    => ['Märkfärger för drottningar', 'Internationell färg efter årtalets sista siffra.', [
 				['key' => 'slutsiffror', 'label' => 'Årtal som slutar på', 'type' => 'text'],
 			]],
+			'honungssorter' => ['Honungssorter', 'Sorter och typer av honung för partier och spårbarhet.', [
+				['key' => 'beskrivning', 'label' => 'Beskrivning', 'type' => 'textarea'],
+			], [
+				['name' => 'Direkttappad honung', 'color' => '#E8B84A'],
+				['name' => 'Ympad honung', 'color' => '#F1D58A'],
+				['name' => 'Sorthonung', 'color' => '#C8693D'],
+				['name' => 'Försommarhonung', 'color' => '#F2D16B'],
+				['name' => 'Högsommarhonung', 'color' => '#D99A2B'],
+				['name' => 'Sensommarhonung', 'color' => '#9A6A12'],
+			]],
+			'kunder'        => ['Kunder', 'Kunder och mottagare av honung. Används för återkallelselistor per parti.', [
+				['key' => 'typ', 'label' => 'Typ', 'type' => 'select', 'options' => ['Privat', 'Butik', 'Återförsäljare', 'Marknad', 'Restaurang', 'Grossist']],
+				['key' => 'kontakt', 'label' => 'Kontaktperson', 'type' => 'text'],
+				['key' => 'telefon', 'label' => 'Telefon', 'type' => 'text'],
+				['key' => 'epost', 'label' => 'E-post', 'type' => 'text'],
+				['key' => 'adress', 'label' => 'Adress', 'type' => 'textarea'],
+			]],
+			'konton'        => ['Budgetkategorier', 'Kategorier för budget och utfall (som i budgetmallen).', [
+				['key' => 'typ', 'label' => 'Typ', 'type' => 'select', 'options' => ['Intäkt', 'Kostnad'], 'required' => true],
+				['key' => 'moms', 'label' => 'Moms', 'type' => 'number', 'unit' => '%', 'min' => 0, 'max' => 25],
+			], [
+				['name' => 'Försäljning varor', 'data' => ['typ' => 'Intäkt', 'moms' => 12]],
+				['name' => 'Tjänster', 'data' => ['typ' => 'Intäkt', 'moms' => 25]],
+				['name' => 'Konsultintäkter', 'data' => ['typ' => 'Intäkt', 'moms' => 25]],
+				['name' => 'Försäljning av samhällen', 'data' => ['typ' => 'Intäkt', 'moms' => 25]],
+				['name' => 'Övriga rörelseintäkter', 'data' => ['typ' => 'Intäkt', 'moms' => 25]],
+				['name' => 'Förbrukningsvaror', 'data' => ['typ' => 'Kostnad', 'moms' => 25]],
+				['name' => 'Varuinköp', 'data' => ['typ' => 'Kostnad', 'moms' => 25]],
+				['name' => 'Lokaler', 'data' => ['typ' => 'Kostnad', 'moms' => 25]],
+				['name' => 'Fordon', 'data' => ['typ' => 'Kostnad', 'moms' => 25]],
+				['name' => 'IT och system', 'data' => ['typ' => 'Kostnad', 'moms' => 25]],
+				['name' => 'Marknadsföring', 'data' => ['typ' => 'Kostnad', 'moms' => 25]],
+				['name' => 'Marknadsavgifter', 'data' => ['typ' => 'Kostnad', 'moms' => 25]],
+				['name' => 'Försäkringar', 'data' => ['typ' => 'Kostnad', 'moms' => 0]],
+				['name' => 'Redovisning och bank', 'data' => ['typ' => 'Kostnad', 'moms' => 25]],
+				['name' => 'Resor', 'data' => ['typ' => 'Kostnad', 'moms' => 6]],
+				['name' => 'Personal', 'data' => ['typ' => 'Kostnad', 'moms' => 0]],
+				['name' => 'Övriga externa kostnader', 'data' => ['typ' => 'Kostnad', 'moms' => 25]],
+			]],
 			'lagerplatser'  => ['Lagerplatser', 'Förråd där material lagras, t.ex. centrallagret och honungshuset. Bigårdar och kupor är också lagerplatser, de behöver inte läggas in här.', [
 				['key' => 'beskrivning', 'label' => 'Beskrivning', 'type' => 'textarea'],
 			]],
@@ -80,7 +119,11 @@ class NBS_Starter {
 		foreach (self::system_lists() as $key => $def) {
 			$list = NBS_Lists::get_by_key($org_id, $key);
 			if (!$list) {
-				NBS_Lists::create($org_id, ['key' => $key, 'name' => $def[0], 'description' => $def[1], 'fields' => $def[2], 'sort' => $sort], 'system');
+				$list = NBS_Lists::create($org_id, ['key' => $key, 'name' => $def[0], 'description' => $def[1], 'fields' => $def[2], 'sort' => $sort], 'system');
+				// Grundvärden för listor som skapas första gången (t.ex. honungssorter, budgetkategorier).
+				foreach ($def[3] ?? [] as $it) {
+					NBS_Lists::save_item($org_id, $list['id'], $it);
+				}
 			} else {
 				$add = [];
 				foreach (self::ADDED_FIELDS[$key] ?? [] as $fk) {
@@ -149,9 +192,9 @@ class NBS_Starter {
 				['name' => 'Nordiskt bi', 'data' => ['ras' => 'Apis mellifera mellifera']],
 			],
 			'fodertyper'   => [
-				['name' => 'Inverterad sockerlösning (invintring)', 'data' => ['form' => 'Flytande', 'material' => '@material:Inverterad sockerlösning']],
-				['name' => 'Foderdeg', 'data' => ['form' => 'Deg', 'material' => '@material:Foderdeg']],
-				['name' => 'Socker', 'data' => ['form' => 'Torrt socker', 'material' => '@material:Socker 15 kg']],
+				['name' => 'Inverterad sockerlösning (invintring)', 'data' => ['form' => 'Flytande', 'torrsubstans' => 72, 'material' => '@material:Inverterad sockerlösning']],
+				['name' => 'Foderdeg', 'data' => ['form' => 'Deg', 'torrsubstans' => 88, 'material' => '@material:Foderdeg']],
+				['name' => 'Socker', 'data' => ['form' => 'Torrt socker', 'torrsubstans' => 100, 'material' => '@material:Socker 15 kg']],
 			],
 			'behandling'   => [
 				['name' => 'Oxalsyra, sublimering', 'data' => ['amne' => 'Oxalsyra', 'metod' => 'Sublimering', 'karens' => 'Inte med skattlådor på', 'material' => '@material:Oxalsyra (sublimering)']],

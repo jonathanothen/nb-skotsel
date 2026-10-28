@@ -15,9 +15,14 @@ class NBS_App {
 		add_action('init', [__CLASS__, 'add_rewrite']);
 		add_filter('query_vars', function ($vars) {
 			$vars[] = 'nbs_app';
+			$vars[] = 'nbs_file';
 			return $vars;
 		});
 		add_action('template_redirect', [__CLASS__, 'render_page']);
+		// WordPress vill lägga till ett snedstreck (/sw.js/), men tjänstearbetare får inte omdirigeras.
+		add_filter('redirect_canonical', function ($url) {
+			return get_query_var('nbs_file') ? false : $url;
+		});
 		add_action('admin_menu', [__CLASS__, 'admin_menu']);
 		add_filter('wp_robots', function ($robots) {
 			if (get_query_var('nbs_app')) {
@@ -29,7 +34,13 @@ class NBS_App {
 	}
 
 	public static function add_rewrite() {
+		add_rewrite_rule('^' . self::SLUG . '/(sw\.js|manifest\.webmanifest)$', 'index.php?nbs_app=1&nbs_file=$matches[1]', 'top');
 		add_rewrite_rule('^' . self::SLUG . '/?(.*)?$', 'index.php?nbs_app=1', 'top');
+		// Nya regler i en uppdatering måste skrivas in en gång (aktiveringen körs inte vid uppdatering).
+		if (get_option('nbs_rewrite_version') !== NBS_VERSION) {
+			flush_rewrite_rules(false);
+			update_option('nbs_rewrite_version', NBS_VERSION);
+		}
 	}
 
 	public static function url($path = '') {
@@ -58,10 +69,42 @@ class NBS_App {
 		]) . ';', 'before');
 	}
 
+	/**
+	 * PWA-filerna under /skotsel/ (tjänstearbetaren måste ligga där för att få rätt scope).
+	 * De innehåller ingen data och kräver därför ingen inloggning.
+	 */
+	private static function serve_pwa_file() {
+		$base = (string) wp_parse_url(self::url(), PHP_URL_PATH);
+		$file = (string) get_query_var('nbs_file');
+		if ($file === 'sw.js') {
+			header('Content-Type: application/javascript; charset=utf-8');
+			header('Service-Worker-Allowed: ' . $base);
+			header('Cache-Control: no-cache');
+			echo str_replace(['__VERSION__', '__BASE__', '__PLUGIN__'], [NBS_VERSION . '-' . (self::asset_meta()['version'] ?? ''), $base, (string) wp_parse_url(NBS_URL, PHP_URL_PATH)], (string) file_get_contents(NBS_DIR . 'assets/sw.js')); // phpcs:ignore
+			exit;
+		}
+		if ($file === 'manifest.webmanifest') {
+			header('Content-Type: application/manifest+json; charset=utf-8');
+			echo wp_json_encode([
+				'name'             => 'Skötsel – ' . get_bloginfo('name'),
+				'short_name'       => 'Skötsel',
+				'start_url'        => $base,
+				'scope'            => $base,
+				'display'          => 'standalone',
+				'background_color' => '#FAF6EE',
+				'theme_color'      => '#3B2A1A',
+				'lang'             => 'sv',
+				'icons'            => [['src' => NBS_URL . 'assets/icon.svg', 'sizes' => 'any', 'type' => 'image/svg+xml', 'purpose' => 'any maskable']],
+			], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+			exit;
+		}
+	}
+
 	public static function render_page() {
 		if (!get_query_var('nbs_app')) {
 			return;
 		}
+		self::serve_pwa_file();
 		nocache_headers();
 		if (!is_user_logged_in()) {
 			wp_safe_redirect(wp_login_url(self::url()));
@@ -81,6 +124,10 @@ class NBS_App {
 <meta charset="<?php bloginfo('charset'); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#3B2A1A">
+<link rel="manifest" href="<?php echo esc_url(self::url('manifest.webmanifest')); ?>">
+<link rel="icon" href="<?php echo esc_url(NBS_URL . 'assets/icon.svg'); ?>" type="image/svg+xml">
+<link rel="apple-touch-icon" href="<?php echo esc_url(NBS_URL . 'assets/icon.svg'); ?>">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Skötsel – <?php echo esc_html(get_bloginfo('name')); ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600;700&display=swap">

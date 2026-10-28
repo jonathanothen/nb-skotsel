@@ -89,6 +89,198 @@ class NBS_Entities {
 			],
 			'index'  => ['colony_id', 'mother_id'],
 		],
+
+		// ---- Fas 4: driftplan (aktiviteter och dragkalender, återkommer varje år)
+		'plan' => [
+			'table' => 'plan',
+			'title' => 'name',
+			'label' => 'Aktiviteten',
+			'cols'  => [
+				'kind'        => 'enum:plankind',
+				'name'        => 'text!',
+				'note'        => 'textarea',
+				'category_id' => 'uuid',
+				'week_start'  => 'int',
+				'week_end'    => 'int',
+				'owner'       => 'text',
+				'status_id'   => 'uuid',
+				'template_id' => 'uuid',
+				'scope'       => 'json',
+				'done'        => 'json',
+				'sort'        => 'int',
+			],
+		],
+
+		// ---- Fas 5: bihälsa (varroamätning, behandling, sjukdom, observation)
+		'health' => [
+			'table' => 'health',
+			'title' => 'type',
+			'label' => 'Posten',
+			'cols'  => [
+				'type'         => 'enum:health',
+				'rec_date'     => 'date',
+				'colony_id'    => 'uuid',
+				'apiary_id'    => 'uuid',
+				'method'       => 'text',
+				'value'        => 'decimal',
+				'treatment_id' => 'uuid',
+				'round'        => 'int',
+				'disease'      => 'text',
+				'status'       => 'enum:hstatus',
+				'action'       => 'textarea',
+				'note'         => 'textarea',
+				'stock_batch'  => 'uuid',
+			],
+			'index' => ['colony_id', 'apiary_id', 'rec_date'],
+		],
+
+		// ---- Fas 6: honung och spårbarhet
+		'batch' => [
+			'table'  => 'batches',
+			'title'  => 'code',
+			'label'  => 'Partiet',
+			'unique' => 'code',
+			'cols'   => [
+				'code'         => 'text!',
+				'year'         => 'int',
+				'apiary_id'    => 'uuid',
+				'harvest_date' => 'date',
+				'sort_id'      => 'uuid',
+				'status'       => 'enum:batch',
+				'kg'           => 'decimal',
+				'water'        => 'decimal',
+				'extract_date' => 'date',
+				'notes'        => 'textarea',
+			],
+			'index'  => ['apiary_id', 'year'],
+		],
+		'fill' => [
+			'table' => 'fills',
+			'title' => 'batch_id',
+			'label' => 'Tappningen',
+			'cols'  => [
+				'batch_id'    => 'uuid',
+				'fill_date'   => 'date',
+				'product_id'  => 'uuid',
+				'jar_g'       => 'int',
+				'jars'        => 'int',
+				'kg'          => 'decimal',
+				'best_before' => 'date',
+				'stock_batch' => 'uuid',
+				'note'        => 'textarea',
+			],
+			'index' => ['batch_id'],
+		],
+		'delivery' => [
+			'table' => 'deliveries',
+			'title' => 'batch_id',
+			'label' => 'Leveransen',
+			'cols'  => [
+				'batch_id'      => 'uuid',
+				'delivery_date' => 'date',
+				'customer_id'   => 'uuid',
+				'customer'      => 'text',
+				'jar_g'         => 'int',
+				'jars'          => 'int',
+				'kg'            => 'decimal',
+				'note'          => 'textarea',
+			],
+			'index' => ['batch_id', 'customer_id'],
+		],
+		'haccp' => [
+			'table' => 'haccp',
+			'title' => 'description',
+			'label' => 'Posten',
+			'cols'  => [
+				'rec_date'    => 'date',
+				'type'        => 'enum:haccp',
+				'area'        => 'text',
+				'batch_id'    => 'uuid',
+				'description' => 'text!',
+				'value'       => 'decimal',
+				'action'      => 'textarea',
+				'status'      => 'enum:haccpstatus',
+			],
+			'index' => ['rec_date'],
+		],
+
+		// ---- Fas 7: avel och drottningodling
+		'evaluation' => [
+			'table' => 'evaluations',
+			'title' => 'queen_id',
+			'label' => 'Bedömningen',
+			'cols'  => [
+				'queen_id'  => 'uuid',
+				'colony_id' => 'uuid',
+				'eval_date' => 'date',
+				'season'    => 'int',
+				'scores'    => 'json',
+				'total'     => 'decimal',
+				'note'      => 'textarea',
+			],
+			'index' => ['queen_id', 'season'],
+		],
+		'rearing' => [
+			'table' => 'rearing',
+			'title' => 'name',
+			'label' => 'Odlingsserien',
+			'cols'  => [
+				'name'       => 'text!',
+				'graft_date' => 'date',
+				'mother_id'  => 'uuid',
+				'apiary_id'  => 'uuid',
+				'grafted'    => 'int',
+				'accepted'   => 'int',
+				'hatched'    => 'int',
+				'mated'      => 'int',
+				'status'     => 'enum:rearing',
+				'note'       => 'textarea',
+			],
+		],
+
+		// ---- Fas 8: ekonomi
+		'budget' => [
+			'table' => 'budget',
+			'title' => 'description',
+			'label' => 'Budgetraden',
+			'cols'  => [
+				'year'        => 'int',
+				'account_id'  => 'uuid',
+				'description' => 'text!',
+				'vat'         => 'decimal',
+				'months'      => 'json',
+				'note'        => 'textarea',
+			],
+			'index' => ['year'],
+		],
+		'ledger' => [
+			'table' => 'ledger',
+			'title' => 'description',
+			'label' => 'Posten',
+			'cols'  => [
+				'entry_date'  => 'date',
+				'account_id'  => 'uuid',
+				'description' => 'text!',
+				'amount'      => 'decimal',
+				'vat'         => 'decimal',
+				'batch_id'    => 'uuid',
+				'note'        => 'textarea',
+			],
+			'index' => ['entry_date'],
+		],
+		'investment' => [
+			'table' => 'investments',
+			'title' => 'name',
+			'label' => 'Investeringen',
+			'cols'  => [
+				'name'   => 'text!',
+				'month'  => 'code',
+				'amount' => 'decimal',
+				'vat'    => 'decimal',
+				'years'  => 'int',
+				'note'   => 'textarea',
+			],
+		],
 	];
 
 	/** Fasta värden som styr logik. Det första värdet är standard. */
@@ -96,6 +288,13 @@ class NBS_Entities {
 		'colony' => ['produktion', 'avlaggare', 'samuel', 'parning', 'dod', 'sald', 'sammanslagen'],
 		'queen'  => ['parad', 'oparad', 'ersatt', 'dod', 'sald', 'forsvunnen'],
 		'mating' => ['', 'fri', 'station', 'moonshine', 'instrumentell'],
+		'plankind'    => ['activity', 'drag'],
+		'health'      => ['varroa', 'behandling', 'sjukdom', 'observation'],
+		'hstatus'     => ['', 'misstanke', 'bekraftad', 'atgardad', 'avskriven'],
+		'batch'       => ['skattad', 'slungad', 'ympad', 'tappad', 'slut'],
+		'haccp'       => ['kontroll', 'avvikelse', 'rengoring', 'temperatur'],
+		'haccpstatus' => ['', 'oppen', 'stangd'],
+		'rearing'     => ['planerad', 'pagar', 'klar'],
 	];
 
 	/** Status som betyder att samhället/drottningen är aktiv. */
@@ -133,6 +332,10 @@ class NBS_Entities {
 				return 'tinyint(1) NOT NULL DEFAULT 0';
 			case 'enum':
 				return 'varchar(20) NULL';
+			case 'decimal':
+				return 'decimal(14,3) NULL';
+			case 'json':
+				return 'longtext NULL';
 		}
 		return 'varchar(190) NULL';
 	}
@@ -199,6 +402,12 @@ class NBS_Entities {
 				case 'bool':
 					$v = (bool) $v;
 					break;
+				case 'decimal':
+					$v = $v === null ? null : (float) $v;
+					break;
+				case 'json':
+					$v = NBS_Repo::unjson($v, null);
+					break;
 				default:
 					$v = $v === null ? null : (string) $v;
 			}
@@ -223,6 +432,66 @@ class NBS_Entities {
 		global $wpdb;
 		$order = $type === 'apiary' ? 'sort, name' : self::TYPES[$type]['title'];
 		$rows  = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . self::table($type) . " WHERE org_id = %s ORDER BY $order", $org_id), ARRAY_A); // phpcs:ignore
+		return array_map(function ($r) use ($type) {
+			return self::cast($type, $r);
+		}, $rows);
+	}
+
+	/** Rensar JSON-värden rekursivt: text saneras, tal och sanningsvärden behålls. */
+	private static function clean_json($v) {
+		if (is_array($v) || is_object($v)) {
+			$out = [];
+			foreach ((array) $v as $k => $x) {
+				$out[is_int($k) ? $k : sanitize_key($k)] = self::clean_json($x);
+			}
+			return $out;
+		}
+		if (is_bool($v) || is_int($v) || is_float($v) || $v === null) {
+			return $v;
+		}
+		return sanitize_text_field((string) $v);
+	}
+
+	/**
+	 * Poster av en typ med filter: kolumn => uuid för kopplingar, year (kolumnen year/season
+	 * eller årtalet i datumkolumnen), since/until (datumkolumnen), limit.
+	 */
+	public static function query($org_id, $type, $f = []) {
+		global $wpdb;
+		$def = self::def($type);
+		if (!$def) {
+			return [];
+		}
+		$t     = self::table($type);
+		$where = $wpdb->prepare('org_id = %s', $org_id);
+		$date  = null;
+		foreach ($def['cols'] as $col => $kind) {
+			if ($kind === 'date' && !$date) {
+				$date = $col;
+			}
+			if ($kind === 'uuid' && !empty($f[$col]) && NBS_Repo::is_uuid($f[$col])) {
+				$where .= $wpdb->prepare(" AND $col = %s", $f[$col]);
+			}
+			if (strpos($kind, 'enum:') === 0 && isset($f[$col]) && in_array($f[$col], self::ENUMS[substr($kind, 5)], true)) {
+				$where .= $wpdb->prepare(" AND $col = %s", $f[$col]);
+			}
+		}
+		if (!empty($f['year']) && is_numeric($f['year'])) {
+			$ycol = isset($def['cols']['year']) ? 'year' : (isset($def['cols']['season']) ? 'season' : null);
+			if ($ycol) {
+				$where .= $wpdb->prepare(" AND $ycol = %d", (int) $f['year']);
+			} elseif ($date) {
+				$where .= $wpdb->prepare(" AND $date BETWEEN %s AND %s", (int) $f['year'] . '-01-01', (int) $f['year'] . '-12-31');
+			}
+		}
+		foreach (['since' => '>=', 'until' => '<='] as $k => $op) {
+			if ($date && !empty($f[$k]) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $f[$k])) {
+				$where .= $wpdb->prepare(" AND $date $op %s", $f[$k]);
+			}
+		}
+		$order = $date ? "$date DESC, created_at DESC" : (isset($def['cols']['sort']) ? 'sort, ' . $def['title'] : $def['title']);
+		$limit = max(1, min(5000, (int) ($f['limit'] ?? 2000)));
+		$rows  = $wpdb->get_results("SELECT * FROM $t WHERE $where ORDER BY $order LIMIT $limit", ARRAY_A); // phpcs:ignore
 		return array_map(function ($r) use ($type) {
 			return self::cast($type, $r);
 		}, $rows);
@@ -309,6 +578,12 @@ class NBS_Entities {
 					break;
 				case 'bool':
 					$v = $v ? 1 : 0;
+					break;
+				case 'decimal':
+					$v = ($v === null || $v === '' || !is_numeric(str_replace(',', '.', (string) $v))) ? null : round((float) str_replace(',', '.', (string) $v), 3);
+					break;
+				case 'json':
+					$v = (is_array($v) || is_object($v)) ? NBS_Repo::json(self::clean_json($v)) : null;
 					break;
 				case 'enum':
 					$enum = self::ENUMS[substr($kind, 5)];
