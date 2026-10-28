@@ -17,16 +17,19 @@ export const VARROA_METHODS = [
 	[ 'Drönaryngel', '% angripna celler', 5 ],
 ];
 const H_STATUS = [ [ 'misstanke', 'Misstanke' ], [ 'bekraftad', 'Bekräftad' ], [ 'atgardad', 'Åtgärdad' ], [ 'avskriven', 'Avskriven' ] ];
-/** Förslag till åtgärdsplan per sjukdom (ändras fritt; följ bihälsoplanen och myndigheternas råd). */
-export const DISEASES = {
-	'Amerikansk yngelröta (AFB)': 'Anmälningspliktig. Kontakta bitillsynsman/Länsstyrelsen direkt. Flytta inte bin, ramar eller material. Minska flustret mot röveri. Avvakta besked om sanering.',
-	'Europeisk yngelröta (EFB)': 'Kontakta bitillsynsman. Isolera samhället, flytta inget material. Sanering (t.ex. skakning till nytt material) enligt råd.',
-	Kalkyngel: 'Ta bort angripna ramar, se till att samhället är starkt och har plats. Byt drottning till en hygienisk linje om det kvarstår.',
-	Säckyngel: 'Ofta övergående. Följ upp vid nästa besök; byt drottning om det kvarstår.',
-	Nosema: 'Byt ut gamla ramar, säkra bra foder och plats. Rengör material från samhället.',
-	'Vingmissbildning (DWV)': 'Tecken på högt kvalstertryck. Mät varroa i samhället och bigården och behandla vid behov.',
-	'Lilla kupskalbaggen / Tropilaelaps': 'Anmälningspliktig. Kontakta Länsstyrelsen/Jordbruksverket omedelbart. Flytta inget.',
-	Annat: '',
+/**
+ * Sjukdomar och skadegörare kommer från grundlistan "sjukdomar" (Listor), där varje post har ett
+ * förslag till åtgärdsplan. Grundposterna är bara förslag och kan ändras eller kompletteras.
+ */
+export const useDiseases = () => useLoad( () => api( 'lists' ).then( ( ls ) => {
+	const l = ls.find( ( x ) => x.key === 'sjukdomar' );
+	return l ? api( 'lists/' + l.id ).then( ( r ) => r.items.filter( ( i ) => i.active !== false ).map( ( i ) => ( { name: i.name, action: ( i.data && i.data.atgard ) || '', notifiable: !! ( i.data && i.data.anmalningsplikt ) } ) ) ) : [];
+} ) );
+
+/** Namnen som val, plus nuvarande värde om det inte finns i listan (äldre poster). */
+export const diseaseOptions = ( list, current ) => {
+	const names = ( list || [] ).map( ( d ) => d.name );
+	return current && ! names.includes( current ) ? [ ...names, current ] : names;
 };
 
 const varroaLimit = ( method ) => ( VARROA_METHODS.find( ( m ) => m[ 0 ] === method ) || [ '', '', 3 ] )[ 2 ];
@@ -149,9 +152,16 @@ function Register( { onDone } ) {
 	const [ item, setItem ] = useState( '' );
 	const [ qty, setQty ] = useState( '' );
 	const [ from, setFrom ] = useState( '' );
-	const [ disease, setDisease ] = useState( Object.keys( DISEASES )[ 0 ] );
+	const [ diseases ] = useDiseases();
+	const [ disease, setDisease ] = useState( '' );
 	const [ status, setStatus ] = useState( 'misstanke' );
-	const [ action, setAction ] = useState( DISEASES[ Object.keys( DISEASES )[ 0 ] ] );
+	const [ action, setAction ] = useState( '' );
+	const pickDisease = ( name ) => {
+		setDisease( name );
+		const d = ( diseases || [] ).find( ( x ) => x.name === name );
+		setAction( d ? d.action : '' );
+	};
+	const chosenDisease = ( diseases || [] ).find( ( x ) => x.name === disease );
 	const [ note, setNote ] = useState( '' );
 	const [ busy, setBusy ] = useState( false );
 	const [ err, setErr ] = useState( null );
@@ -295,8 +305,9 @@ function Register( { onDone } ) {
 						<div className="nbs-form-row">
 							<div className="nbs-field">
 								<label htmlFor="nbs-h-dis">Sjukdom</label>
-								<select id="nbs-h-dis" value={ disease } onChange={ ( e ) => ( setDisease( e.target.value ), setAction( DISEASES[ e.target.value ] ) ) }>
-									{ Object.keys( DISEASES ).map( ( d ) => <option key={ d } value={ d }>{ d }</option> ) }
+								<select id="nbs-h-dis" value={ disease } onChange={ ( e ) => pickDisease( e.target.value ) }>
+									<option value="">Välj…</option>
+									{ ( diseases || [] ).map( ( d ) => <option key={ d.name } value={ d.name }>{ d.name }{ d.notifiable ? ' (anmälningspliktig)' : '' }</option> ) }
 								</select>
 							</div>
 							<FieldInput field={ { key: 'h_status', label: 'Status', type: 'select', noEmpty: true, options: H_STATUS } } value={ status } onChange={ setStatus } />
@@ -304,7 +315,8 @@ function Register( { onDone } ) {
 						<div className="nbs-field">
 							<label htmlFor="nbs-h-act">Åtgärdsplan</label>
 							<textarea id="nbs-h-act" rows={ 3 } value={ action } onChange={ ( e ) => setAction( e.target.value ) } />
-							<small className="nbs-help">Förslaget följer vanliga råd – stäm av mot bihälsoplanen och bitillsynsmannen.</small>
+							{ chosenDisease && chosenDisease.notifiable && <p className="nbs-warn">Anmälningspliktig – kontakta myndigheten innan något flyttas.</p> }
+							<small className="nbs-help">Förslaget hämtas från listan <a href={ href( 'listor' ) }>Sjukdomar och skadegörare</a>, där sjukdomarna och åtgärdsförslagen ändras. Stäm av mot bihälsoplanen och bitillsynsmannen.</small>
 						</div>
 					</>
 				) }
@@ -314,7 +326,7 @@ function Register( { onDone } ) {
 					<input id="nbs-h-note" type="text" value={ note } onChange={ ( e ) => setNote( e.target.value ) } />
 				</div>
 				<div className="nbs-row-actions">
-					<Button onClick={ run } disabled={ busy || ( type !== 'varroa' && ! chosen.length ) }>{ busy ? 'Sparar…' : 'Spara' }</Button>
+					<Button onClick={ run } disabled={ busy || ( type !== 'varroa' && ! chosen.length ) || ( type === 'sjukdom' && ! disease ) }>{ busy ? 'Sparar…' : 'Spara' }</Button>
 				</div>
 			</div>
 		</section>
@@ -323,7 +335,7 @@ function Register( { onDone } ) {
 
 /* ------------------------------------------------------------------ Logg */
 
-export function healthFields() {
+export function healthFields( diseases = [], current = '' ) {
 	return [
 		{ key: 'type', label: 'Typ', type: 'select', noEmpty: true, options: HEALTH_TYPES },
 		{ key: 'rec_date', label: 'Datum', type: 'date' },
@@ -332,7 +344,7 @@ export function healthFields() {
 		{ key: 'value', label: 'Värde', type: 'number', when: ( f ) => f.type === 'varroa' },
 		{ key: 'treatment_id', label: 'Behandlingsmedel', type: 'ref', ref: 'behandling', when: ( f ) => f.type === 'behandling' },
 		{ key: 'round', label: 'Omgång', type: 'number', when: ( f ) => f.type === 'behandling' },
-		{ key: 'disease', label: 'Sjukdom', type: 'select', options: Object.keys( DISEASES ), when: ( f ) => f.type === 'sjukdom' },
+		{ key: 'disease', label: 'Sjukdom', type: 'select', options: diseaseOptions( diseases, current ), when: ( f ) => f.type === 'sjukdom' },
 		{ key: 'status', label: 'Status', type: 'select', options: H_STATUS, when: ( f ) => f.type === 'sjukdom' },
 		{ key: 'action', label: 'Åtgärdsplan', type: 'textarea', when: ( f ) => f.type === 'sjukdom' },
 		{ key: 'note', label: 'Anteckning', type: 'textarea' },
@@ -345,6 +357,7 @@ function Log( { stamp, custom, onChanged } ) {
 	const [ year, setYear ] = useState( thisYear() );
 	const [ rows, error, reload ] = useRecords( 'health', { type, year }, [ stamp ] );
 	const [ editing, setEditing ] = useState( null );
+	const [ diseases ] = useDiseases();
 	return (
 		<>
 			<div className="nbs-toolbar">
@@ -370,7 +383,7 @@ function Log( { stamp, custom, onChanged } ) {
 					] }
 				/>
 			) }
-			{ editing && <RecordForm type="health" title="Bihälsopost" fields={ healthFields() } item={ editing } custom={ custom } onClose={ () => setEditing( null ) } onSaved={ () => ( reload(), onChanged() ) } /> }
+			{ editing && <RecordForm type="health" title="Bihälsopost" fields={ healthFields( diseases, editing.disease ) } item={ editing } custom={ custom } onClose={ () => setEditing( null ) } onSaved={ () => ( reload(), onChanged() ) } /> }
 		</>
 	);
 }

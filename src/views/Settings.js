@@ -12,6 +12,7 @@ const TABS = [
 	[ 'logg', 'Ändringslogg' ],
 	[ 'moduler', 'Moduler' ],
 	[ 'export', 'Export' ],
+	[ 'uppdateringar', 'Uppdateringar' ],
 ];
 
 export default function Settings( { tab = '' } ) {
@@ -27,8 +28,72 @@ export default function Settings( { tab = '' } ) {
 			{ tab === 'logg' && <Audit /> }
 			{ tab === 'moduler' && <Modules /> }
 			{ tab === 'export' && <Export /> }
+			{ tab === 'uppdateringar' && <Updates /> }
 			{ ! tab && <Org /> }
 		</div>
+	);
+}
+
+/** Pluginet och kupbiblioteket hämtas från GitHub. Knappen söker efter båda på en gång. */
+function Updates() {
+	const me = useMe();
+	const toast = useToast();
+	const [ status, error, , setStatus ] = useLoad( () => api( 'updates' ) );
+	const [ busy, setBusy ] = useState( '' );
+	if ( ! me.can.manage ) {
+		return <p>Bara administratörer kan hantera uppdateringar.</p>;
+	}
+	const run = async ( what ) => {
+		setBusy( what );
+		try {
+			if ( what === 'check' ) {
+				const s = await api( 'updates/check', { method: 'POST' } );
+				setStatus( s );
+				toast( s.plugin.available ? `Version ${ s.plugin.remote } av pluginet finns.` : 'Du har senaste versionen. Biblioteket är hämtat på nytt.' );
+			} else {
+				const r = await api( 'updates/plugin', { method: 'POST' } );
+				toast( r.message );
+				if ( r.updated ) {
+					setTimeout( () => window.location.reload(), 1500 );
+				}
+			}
+		} catch ( e ) {
+			toast( e.message, 'error' );
+		}
+		setBusy( '' );
+	};
+	const p = status && status.plugin;
+	const l = status && status.library;
+	return (
+		<section className="nbs-card">
+			<h2 className="nbs-h2">Uppdateringar</h2>
+			<p className="nbs-muted">Pluginet och det gemensamma kupbiblioteket (kupdelar, ramformat och 3D-modeller) hämtas från GitHub. Nya delar i biblioteket kommer utan att pluginet behöver uppdateras.</p>
+			<ErrorBox error={ error } />
+			{ ! status && ! error && <Loading /> }
+			{ status && (
+				<>
+					<table className="nbs-table">
+						<tbody>
+							<tr>
+								<th>Plugin</th>
+								<td>Version { p.installed }{ p.remote ? ` · på GitHub: ${ p.remote }` : ' · GitHub kunde inte nås' }</td>
+								<td>{ p.available ? <span className="nbs-badge is-low">Ny version</span> : p.remote && <span className="nbs-badge is-ok">Senaste</span> }</td>
+							</tr>
+							<tr>
+								<th>Kupbibliotek</th>
+								<td>{ l.error || `Version ${ l.version } · ${ l.parts } delar, ${ l.frames } ramformat · ${ l.origin === 'github' ? 'från GitHub' : 'pluginets kopia' }` }</td>
+								<td>{ l.fetched && <small className="nbs-muted">Hämtat { l.fetched.slice( 0, 16 ).replace( 'T', ' ' ) }</small> }</td>
+							</tr>
+						</tbody>
+					</table>
+					<div className="nbs-row-actions">
+						<Button onClick={ () => run( 'check' ) } disabled={ !! busy }>{ busy === 'check' ? 'Söker…' : 'Sök efter uppdateringar' }</Button>
+						{ p.available && p.can_update && <Button onClick={ () => run( 'plugin' ) } disabled={ !! busy }>{ busy === 'plugin' ? 'Uppdaterar…' : `Uppdatera pluginet till ${ p.remote }` }</Button> }
+						{ p.available && ! p.can_update && <span className="nbs-muted">Be en administratör av webbplatsen uppdatera.</span> }
+					</div>
+				</>
+			) }
+		</section>
 	);
 }
 

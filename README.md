@@ -63,6 +63,17 @@ per samhälle, partikoder (ÅR-BIGÅRD-NR), tappning med burkar från lagret och
 - Excel: export av alla register (Inställningar → Export) och import av samhällen genom att klistra in rader.
 - KML/KMZ-import av bigårdarnas positioner (Bigårdar → Importera karta).
 
+### Kupbibliotek och kupbyggare
+
+- `library/index.json` är det gemensamma kupbiblioteket: märken, system (fotavtryck, antal ramar), delar
+  (botten, låda, tak … med mått och källa: standard/datablad/uppmätt) och ramformat. Pluginet läser filen
+  från GitHub (`main`), cachat i 12 timmar, med pluginets kopia som reserv – nya delar når alla utan ny version.
+- `library/ramar/*.glb` genereras från ramprojektet (`Fristad/3D-ramar`):
+  `blender -b -P exportera_glb.py -- <nb-skotsel>/library` (skriver även `frames` i index.json).
+- `#/kupbyggare`: dra delar till kupan (three.js, laddas separat), antal per del, ramar per låda,
+  genomskinlig/isärdragen vy, materiallista för N kupor, export som PNG och GLB.
+- Inställningar → Uppdateringar: sök efter nytt i biblioteket och pluginet, och uppdatera pluginet direkt.
+
 ### Körplanering
 
 `#/bigardar/rutt` – välj bigårdar eller en hel slinga, start/mål, optimera ordningen (OSRM-körtider,

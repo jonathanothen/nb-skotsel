@@ -15,6 +15,7 @@ import Health from './views/Health';
 import Honey from './views/Honey';
 import Breeding from './views/Breeding';
 import Economy from './views/Economy';
+import HiveBuilder from './views/HiveBuilder';
 import { RegisterProvider, useRegister } from './register';
 
 export const MeCtx = createContext( null );
@@ -31,6 +32,7 @@ export const MODULES = [
 	{ key: 'bigardar', label: 'Bigårdar', icon: '⌂', mobile: true },
 	{ key: 'samhallen', label: 'Samhällen', icon: '⬡', mobile: true },
 	{ key: 'drottningar', label: 'Drottningar', icon: '♛' },
+	{ key: 'kupbyggare', label: 'Kupbyggare', icon: '⬢' },
 	{ key: 'bihalsa', label: 'Bihälsa', icon: '✚' },
 	{ key: 'honung', label: 'Honung', icon: '◈' },
 	{ key: 'avel', label: 'Avel', icon: '❀' },
@@ -122,6 +124,7 @@ function Shell() {
 		driftplan: () => <Plan route={ rest } />,
 		lager: () => <Stock route={ rest } />,
 		drottningar: () => <Queens id={ route[ 1 ] } />,
+		kupbyggare: () => <HiveBuilder />,
 		bihalsa: () => <Health route={ rest } />,
 		honung: () => <Honey route={ rest } />,
 		avel: () => <Breeding route={ rest } />,

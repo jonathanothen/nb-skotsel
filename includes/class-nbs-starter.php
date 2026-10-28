@@ -96,6 +96,19 @@ class NBS_Starter {
 				['name' => 'Personal', 'data' => ['typ' => 'Kostnad', 'moms' => 0]],
 				['name' => 'Övriga externa kostnader', 'data' => ['typ' => 'Kostnad', 'moms' => 25]],
 			]],
+			'sjukdomar'     => ['Sjukdomar och skadegörare', 'Val vid sjukdomsmisstanke i Bihälsa. Åtgärdsplanen fylls i som förslag och kan ändras per ärende. Grundposterna är förslag – ändra efter bihälsoplanen och bitillsynsmannens råd.', [
+				['key' => 'anmalningsplikt', 'label' => 'Anmälningspliktig', 'type' => 'bool'],
+				['key' => 'atgard', 'label' => 'Förslag till åtgärdsplan', 'type' => 'textarea'],
+			], [
+				['name' => 'Amerikansk yngelröta (AFB)', 'data' => ['anmalningsplikt' => true, 'atgard' => 'Anmälningspliktig. Kontakta bitillsynsman/Länsstyrelsen direkt. Flytta inte bin, ramar eller material. Minska flustret mot röveri. Avvakta besked om sanering.']],
+				['name' => 'Europeisk yngelröta (EFB)', 'data' => ['atgard' => 'Kontakta bitillsynsman. Isolera samhället, flytta inget material. Sanering (t.ex. skakning till nytt material) enligt råd.']],
+				['name' => 'Lilla kupskalbaggen (Aethina tumida)', 'data' => ['anmalningsplikt' => true, 'atgard' => 'Anmälningspliktig. Kontakta Länsstyrelsen/Jordbruksverket omedelbart. Flytta inga bin, ramar eller material. Spara skalbaggar eller larver i sprit som prov.']],
+				['name' => 'Tropilaelapskvalster (Tropilaelaps spp.)', 'data' => ['anmalningsplikt' => true, 'atgard' => 'Anmälningspliktig. Kontakta Länsstyrelsen/Jordbruksverket omedelbart. Flytta inga bin, ramar eller material. Spara kvalster eller angripet yngel som prov.']],
+				['name' => 'Kalkyngel', 'data' => ['atgard' => 'Ta bort angripna ramar, se till att samhället är starkt och har plats. Byt drottning till en hygienisk linje om det kvarstår.']],
+				['name' => 'Säckyngel', 'data' => ['atgard' => 'Ofta övergående. Följ upp vid nästa besök; byt drottning om det kvarstår.']],
+				['name' => 'Nosema', 'data' => ['atgard' => 'Byt ut gamla ramar, säkra bra foder och plats. Rengör material från samhället.']],
+				['name' => 'Vingmissbildning (DWV)', 'data' => ['atgard' => 'Tecken på högt kvalstertryck. Mät varroa i samhället och bigården och behandla vid behov.']],
+			]],
 			'lagerplatser'  => ['Lagerplatser', 'Förråd där material lagras, t.ex. centrallagret och honungshuset. Bigårdar och kupor är också lagerplatser, de behöver inte läggas in här.', [
 				['key' => 'beskrivning', 'label' => 'Beskrivning', 'type' => 'textarea'],
 			]],

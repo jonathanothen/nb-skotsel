@@ -1,0 +1,186 @@
+{
+ "schema": 1,
+ "version": "2026-10-28.1",
+ "about": "Gemensamt kupbibliotek för nb-skotsel. Mått i mm. Ramarna genereras från Fristad/3D-ramar (ramparam.py + exportera_glb.py). Delarnas mått: source = standard (beräknat från ramformatet), datablad eller uppmatt.",
+ "brands": [
+  {
+   "id": "standard",
+   "name": "Standard (inget märke)"
+  }
+ ],
+ "systems": [
+  {
+   "id": "std-ls10",
+   "name": "Langstroth 10 ramar",
+   "brand": "standard",
+   "footprint": [
+    505,
+    413
+   ],
+   "frameLength": 480,
+   "frames": 10,
+   "spacing": 35,
+   "note": "Lådans långsida går längs ramarnas överlist (kallbyggt). Yttermått som amerikansk 10-ramars Langstroth."
+  }
+ ],
+ "parts": [
+  {
+   "id": "std-ls10-botten",
+   "kind": "bottom",
+   "name": "Botten",
+   "system": "std-ls10",
+   "brand": "standard",
+   "source": "standard",
+   "outer": [
+    505,
+    413
+   ],
+   "height": 60,
+   "floor": 20,
+   "wall": 20,
+   "entrance": [
+    373,
+    20
+   ]
+  },
+  {
+   "id": "std-ls10-lada-farrar",
+   "kind": "box",
+   "name": "Låda Farrar (3/4 LS)",
+   "system": "std-ls10",
+   "brand": "standard",
+   "source": "standard",
+   "frame": "farrar",
+   "frames": 10,
+   "outer": [
+    505,
+    413
+   ],
+   "height": 168,
+   "wall": 20,
+   "rabbet": [
+    10,
+    10
+   ],
+   "topSpace": 0
+  },
+  {
+   "id": "std-ls10-tak",
+   "kind": "roof",
+   "name": "Tak (teleskop)",
+   "system": "std-ls10",
+   "brand": "standard",
+   "source": "standard",
+   "outer": [
+    535,
+    443
+   ],
+   "height": 80,
+   "top": 20,
+   "wall": 15,
+   "overlap": 55
+  }
+ ],
+ "frames": [
+  {
+   "id": "farrar",
+   "name": "Farrar (3/4 Langstroth)",
+   "model": "ramar/farrar.glb",
+   "outer": 448,
+   "height": 159,
+   "topLength": 480,
+   "topWidth": 25,
+   "earLength": 16,
+   "innerWidth": 428,
+   "innerHeight": 136,
+   "wires": 3,
+   "wireDirection": "Horisontella",
+   "hoffmann": true,
+   "hoffmannWidth": 35,
+   "foundation": [
+    424,
+    134
+   ]
+  },
+  {
+   "id": "langstroth",
+   "name": "Langstroth",
+   "model": "ramar/langstroth.glb",
+   "outer": 448,
+   "height": 232,
+   "topLength": 480,
+   "topWidth": 25,
+   "earLength": 16,
+   "innerWidth": 428,
+   "innerHeight": 209,
+   "wires": 4,
+   "wireDirection": "Horisontella",
+   "hoffmann": true,
+   "hoffmannWidth": 35,
+   "foundation": [
+    424,
+    207
+   ]
+  },
+  {
+   "id": "dadant",
+   "name": "Dadant",
+   "model": "ramar/dadant.glb",
+   "outer": 448,
+   "height": 286,
+   "topLength": 480,
+   "topWidth": 25,
+   "earLength": 16,
+   "innerWidth": 428,
+   "innerHeight": 256,
+   "wires": 5,
+   "wireDirection": "Horisontella",
+   "hoffmann": true,
+   "hoffmannWidth": 35,
+   "foundation": [
+    424,
+    261
+   ]
+  },
+  {
+   "id": "lagnormal",
+   "name": "Lågnormal",
+   "model": "ramar/lagnormal.glb",
+   "outer": 366,
+   "height": 222,
+   "topLength": 396,
+   "topWidth": 25,
+   "earLength": 15,
+   "innerWidth": 346,
+   "innerHeight": 202,
+   "wires": 6,
+   "wireDirection": "Stående",
+   "hoffmann": true,
+   "hoffmannWidth": 35,
+   "foundation": [
+    342,
+    197
+   ]
+  },
+  {
+   "id": "hls",
+   "name": "HLS (halv LS)",
+   "model": "ramar/hls.glb",
+   "outer": 366,
+   "height": 146,
+   "topLength": 396,
+   "topWidth": 25,
+   "earLength": 15,
+   "innerWidth": 346,
+   "innerHeight": 126,
+   "wires": 6,
+   "wireDirection": "Stående",
+   "hoffmann": true,
+   "hoffmannWidth": 35,
+   "foundation": [
+    342,
+    121
+   ]
+  }
+ ]
+}

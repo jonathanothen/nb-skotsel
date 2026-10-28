@@ -353,6 +353,22 @@ class NBS_Rest {
 		// ---- Kortlänkar från Google Maps (maps.app.goo.gl) → slutadress med koordinater.
 		self::route('/geo/resolve', 'POST', [__CLASS__, 'resolve_map_link'], 'can_write');
 
+		// ---- Gemensamt kupbibliotek (GitHub, med pluginets kopia som reserv).
+		self::route('/library', 'GET', function (WP_REST_Request $r) {
+			return self::out(NBS_Library::get($r['refresh'] && NBS_Auth::can_manage()));
+		});
+
+		// ---- Uppdateringar av pluginet och biblioteket från GitHub.
+		self::route('/updates', 'GET', function () {
+			return NBS_Updates::status();
+		}, 'can_manage');
+		self::route('/updates/check', 'POST', function () {
+			return NBS_Updates::check();
+		}, 'can_manage');
+		self::route('/updates/plugin', 'POST', function () {
+			return self::out(NBS_Updates::update_plugin());
+		}, 'can_manage');
+
 		// ---- Ändringslogg
 		self::route('/audit', 'GET', function (WP_REST_Request $r) use ($org) {
 			global $wpdb;
