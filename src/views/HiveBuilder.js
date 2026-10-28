@@ -10,6 +10,8 @@ const KINDS = { bottom: 'Botten', box: 'Låda', excluder: 'Spärrgaller', roof: 
 // Ordning nerifrån och upp när en del läggs till.
 const RANK = { bottom: 0, box: 5, excluder: 5, roof: 9 };
 const STORE = 'nbs_hivebuilder';
+// Färgval för kupan. Tom = delens egen färg (trä, eller fabrikatets färg).
+const PAINTS = [ [ '', 'Original' ], [ '#fbfbf9', 'Vit' ], [ '#f2c84b', 'Gul' ], [ '#e98a2b', 'Orange' ], [ '#b8433a', 'Röd' ], [ '#3e6fb0', 'Blå' ], [ '#4f8a4c', 'Grön' ], [ '#8d8f93', 'Grå' ] ];
 const newKey = () => Date.now().toString( 36 ) + '-' + Math.random().toString( 36 ).slice( 2, 7 );
 
 const load = () => {
@@ -88,7 +90,7 @@ export default function HiveBuilder() {
 
 	useEffect( () => {
 		if ( view3d ) {
-			view3d.setStack( rows.map( ( r ) => ( { part: r.part, qty: r.qty, frames: r.frames } ) ), lib, { transparent, exploded, selected } );
+			view3d.setStack( rows.map( ( r ) => ( { part: r.part, qty: r.qty, frames: r.frames, color: r.color } ) ), lib, { transparent, exploded, selected } );
 		}
 	}, [ view3d, JSON.stringify( stack ), transparent, exploded, selected ] );
 
@@ -98,6 +100,17 @@ export default function HiveBuilder() {
 			return;
 		}
 		setStack( ( st ) => {
+			// Spärrgaller läggs ovanpå den nedersta lådan (yngelrummet); en rad med flera lådor delas.
+			if ( p.kind === 'excluder' ) {
+				const k = st.findIndex( ( s ) => ( partById( s.part ) || {} ).kind === 'box' );
+				if ( k >= 0 ) {
+					const ex = { key: newKey(), part: id, qty: 1, frames: 0 };
+					const b = st[ k ];
+					return b.qty > 1
+						? [ ...st.slice( 0, k ), { ...b, qty: 1 }, ex, { ...b, key: newKey(), qty: b.qty - 1 }, ...st.slice( k + 1 ) ]
+						: [ ...st.slice( 0, k + 1 ), ex, ...st.slice( k + 1 ) ];
+				}
+			}
 			const rank = RANK[ p.kind ] ?? 5;
 			let at = st.length;
 			while ( at > 0 && ( RANK[ ( partById( st[ at - 1 ].part ) || {} ).kind ] ?? 5 ) > rank ) {
@@ -124,6 +137,16 @@ export default function HiveBuilder() {
 		const j = i + d;
 		if ( j < 0 || j >= st.length ) {
 			return st;
+		}
+		// Flyttas t.ex. ett spärrgaller förbi en rad med flera lådor hamnar det mellan lådorna:
+		// en låda kliver över, resten blir kvar.
+		const kind = ( x ) => ( partById( x.part ) || {} ).kind;
+		if ( st[ j ].qty > 1 && kind( st[ j ] ) === 'box' && kind( st[ i ] ) !== 'box' ) {
+			const one = { ...st[ j ], key: newKey(), qty: 1 };
+			const rest = { ...st[ j ], qty: st[ j ].qty - 1 };
+			const n = [ ...st ];
+			n.splice( Math.min( i, j ), 2, ...( d < 0 ? [ rest, st[ i ], one ] : [ one, st[ i ], rest ] ) );
+			return n;
 		}
 		const n = [ ...st ];
 		[ n[ i ], n[ j ] ] = [ n[ j ], n[ i ] ];
@@ -188,7 +211,7 @@ export default function HiveBuilder() {
 		}
 	};
 	// Kuptyper: uppbyggnaden sparas och kopplas till listan "Kupsystem och kuptyper".
-	const changed = type && JSON.stringify( ( type.config && type.config.stack ) || [] ) !== JSON.stringify( stack.map( ( s ) => ( { part: s.part, qty: s.qty, frames: s.frames } ) ) );
+	const changed = type && JSON.stringify( ( type.config && type.config.stack ) || [] ) !== JSON.stringify( stack.map( ( s ) => ( { part: s.part, qty: s.qty, frames: s.frames, ...( s.color ? { color: s.color } : {} ) } ) ) );
 	const openType = ( id ) => {
 		const t = types.find( ( x ) => x.id === id );
 		setTypeId( id );
@@ -214,7 +237,7 @@ export default function HiveBuilder() {
 	};
 	const saveType = async ( name, asNew ) => {
 		try {
-			const body = { name, stack: stack.map( ( s ) => ( { part: s.part, qty: s.qty, frames: s.frames } ) ) };
+			const body = { name, stack: stack.map( ( s ) => ( { part: s.part, qty: s.qty, frames: s.frames, ...( s.color ? { color: s.color } : {} ) } ) ) };
 			const t = typeId && ! asNew ? await api( 'hivetypes/' + typeId, { method: 'PUT', body } ) : await api( 'hivetypes', { method: 'POST', body } );
 			await reg.reload();
 			setTypeId( t.id );
@@ -323,6 +346,15 @@ export default function HiveBuilder() {
 
 				<section className="nbs-card nbs-hb-stack">
 					<h2 className="nbs-h2">Kupan</h2>
+					{ rows.length > 0 && (
+						<div className="nbs-hb-paint" role="group" aria-label="Färg på hela kupan">
+							<span>Färg</span>
+							{ PAINTS.map( ( [ c, l ] ) => (
+								<button key={ l } type="button" title={ l } aria-label={ 'Färg: ' + l } className={ 'nbs-hb-dot' + ( c ? '' : ' is-orig' ) + ( rows.every( ( r ) => ( r.color || '' ) === c ) ? ' is-active' : '' ) } style={ c ? { background: c } : undefined } onClick={ () => setStack( ( st ) => st.map( ( x ) => ( { ...x, color: c || undefined } ) ) ) } />
+							) ) }
+							<input type="color" aria-label="Egen färg på hela kupan" value={ ( rows[ 0 ] && rows[ 0 ].color ) || '#fbfbf9' } onChange={ ( e ) => setStack( ( st ) => st.map( ( x ) => ( { ...x, color: e.target.value } ) ) ) } />
+						</div>
+					) }
 					{ ! rows.length && <p className="nbs-muted">Tom. Börja med en botten.</p> }
 					<ol className="nbs-hb-list" reversed>
 						{ rows.map( ( r, i ) => ( { r, i } ) ).reverse().map( ( { r, i } ) => (
@@ -342,7 +374,13 @@ export default function HiveBuilder() {
 										<label>Ramar/låda <input type="number" min="0" max={ r.part.frames } value={ r.frames } onChange={ ( e ) => update( i, { frames: Math.min( r.part.frames, Math.max( 0, parseInt( e.target.value, 10 ) || 0 ) ) } ) } /></label>
 									) }
 								</div>
-								{ r.part.kind === 'box' && <small className="nbs-muted">{ frameName( r.part.frame ) }</small> }
+								<div className="nbs-hb-row">
+									{ r.part.kind === 'box' ? <small className="nbs-muted">{ frameName( r.part.frame ) }</small> : <span /> }
+									<span className="nbs-hb-rowcolor">
+										<input type="color" aria-label={ 'Färg på ' + r.part.name } value={ r.color || '#d2a56c' } onClick={ ( e ) => e.stopPropagation() } onChange={ ( e ) => update( i, { color: e.target.value } ) } />
+										{ r.color && <button type="button" className="nbs-link-btn" onClick={ ( e ) => ( e.stopPropagation(), update( i, { color: undefined } ) ) }>Original</button> }
+									</span>
+								</div>
 							</li>
 						) ) }
 					</ol>

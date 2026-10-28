@@ -110,16 +110,21 @@ function YearView( { plan, year, templates, onOpen, onDone } ) {
 	const reg = useRegister();
 	const me = useMe();
 	const [ cat, setCat ] = useState( '' );
+	const [ showDrag, setShowDrag ] = useState( false );
 	const now = year === thisYear() ? isoWeek() : null;
 	const tpl = Object.fromEntries( templates.map( ( t ) => [ t.id, t ] ) );
 	// Månadsetiketter: veckan där månaden börjar.
 	const monthStarts = MONTHS.map( ( m, i ) => ( { m, w: isoWeek( new Date( year, i, 4 ) ) } ) );
 	const groups = useMemo( () => {
-		const g = [ [ 'Dragkalender', '#4A8A5A', plan.filter( ( p ) => p.kind === 'drag' ) ] ];
+		// Aktiviteterna först; dragkalendern sist och ihopfälld.
+		const g = [];
 		const acts = plan.filter( ( p ) => p.kind !== 'drag' && ( ! cat || p.category_id === cat ) );
 		const cats = [ ...new Set( acts.map( ( p ) => p.category_id || '' ) ) ];
 		cats.forEach( ( c ) => g.push( [ reg.itemName( c ) || 'Utan kategori', reg.itemColor( c ) || '#A8741A', acts.filter( ( p ) => ( p.category_id || '' ) === c ).sort( ( a, b ) => a.week_start - b.week_start ) ] ) );
-		return cat ? g.slice( 1 ) : g;
+		if ( ! cat ) {
+			g.push( [ 'Dragkalender', '#4A8A5A', plan.filter( ( p ) => p.kind === 'drag' ).sort( ( a, b ) => a.week_start - b.week_start ), true ] );
+		}
+		return g;
 	}, [ plan, cat ] ); // eslint-disable-line react-hooks/exhaustive-deps
 	const cats = [ ...new Set( plan.filter( ( p ) => p.kind !== 'drag' ).map( ( p ) => p.category_id ).filter( Boolean ) ) ];
 	const col = ( w ) => `${ w + 1 }`;
@@ -144,10 +149,13 @@ function YearView( { plan, year, templates, onOpen, onDone } ) {
 						<div className="nbs-gantt-label" />
 						{ Array.from( { length: 52 }, ( _, i ) => <span key={ i } className={ i + 1 === now ? 'is-now' : '' }>{ i + 1 }</span> ) }
 					</div>
-					{ groups.map( ( [ name, color, rows ] ) => rows.length > 0 && (
+					{ groups.map( ( [ name, color, rows, foldable ] ) => rows.length > 0 && (
 						<div key={ name } className="nbs-gantt-group">
-							<div className="nbs-gantt-gname" style={ { '--c': color } }>{ name }</div>
-							{ rows.map( ( p ) => {
+							<div className="nbs-gantt-gname" style={ { '--c': color } }>
+								{ name }
+								{ foldable && <button type="button" className="nbs-link-btn" onClick={ () => setShowDrag( ( v ) => ! v ) } aria-expanded={ showDrag }>{ showDrag ? 'Dölj' : `Visa (${ rows.length })` }</button> }
+							</div>
+							{ ( ! foldable || showDrag ) && rows.map( ( p ) => {
 								const done = p.done && p.done[ year ];
 								const t = tpl[ p.template_id ];
 								return (

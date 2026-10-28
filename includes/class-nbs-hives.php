@@ -88,7 +88,12 @@ class NBS_Hives {
 			}
 			$qty    = max(1, min(20, (int) ($s['qty'] ?? 1)));
 			$frames = $p['kind'] === 'box' ? max(0, min((int) ($p['frames'] ?? 0), (int) ($s['frames'] ?? 0))) : 0;
-			$out[]  = ['part' => $p['id'], 'qty' => $qty, 'frames' => $frames];
+			$row    = ['part' => $p['id'], 'qty' => $qty, 'frames' => $frames];
+			$color  = strtolower((string) ($s['color'] ?? ''));
+			if (preg_match('/^#[0-9a-f]{6}$/', $color)) {
+				$row['color'] = $color;
+			}
+			$out[] = $row;
 		}
 		return $out ?: new WP_Error('nbs_invalid', 'Kuptypen är tom.', ['status' => 400]);
 	}

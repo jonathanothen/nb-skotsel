@@ -115,7 +115,7 @@ export function createHiveScene( el, { onPick } = {} ) {
 		let y = 0;
 		stack.forEach( ( s, item ) => {
 			for ( let n = 0; n < s.qty; n++ ) {
-				const g = buildPart( s.part, y, { frames: frames[ s.part.frame ], frameInfo: lib.frames.find( ( f ) => f.id === s.part.frame ), count: s.frames, transparent, hi: item === selected } );
+				const g = buildPart( s.part, y, { frames: frames[ s.part.frame ], frameInfo: lib.frames.find( ( f ) => f.id === s.part.frame ), count: s.frames, transparent, hi: item === selected, color: s.color } );
 				g.userData.item = item;
 				root.add( g );
 				y += stackHeight( s.part ) + ( exploded ? GAP : 0 );
@@ -232,7 +232,7 @@ function lookMaterials( part, opts ) {
 
 function buildPart( part, y0, opts ) {
 	const g = new THREE.Group();
-	const mat = material( part.kind, opts.transparent, opts.hi, part.look && part.look.body );
+	const mat = material( part.kind, opts.transparent, opts.hi, opts.color || ( part.look && part.look.body ) );
 	const lm = lookMaterials( part, opts );
 	const [ L, W ] = part.outer;
 	const hx = L / 2;
