@@ -388,6 +388,11 @@ class NBS_Rest {
 			}));
 		}, 'can_write');
 
+		// ---- Dragkalendern (nb-dragkalender): växterna att välja drag från.
+		self::route('/dragkalender', 'GET', function () {
+			return NBS_Drag::catalog();
+		});
+
 		// ---- Uppdateringar av pluginet och biblioteket från GitHub.
 		self::route('/updates', 'GET', function () {
 			return NBS_Updates::status();

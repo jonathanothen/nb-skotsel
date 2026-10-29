@@ -36,6 +36,7 @@ class NBS_Visits {
 			'checklist'   => NBS_Repo::unjson($r['checklist']),
 			'material'    => NBS_Repo::unjson($r['material']),
 			'fields'      => NBS_Repo::unjson($r['fields']),
+			'treatment'   => NBS_Repo::unjson($r['treatment'] ?? null, null),
 			'sort'        => (int) $r['sort'],
 			'archived'    => (bool) $r['archived'],
 			'visits'      => isset($r['visit_count']) ? (int) $r['visit_count'] : 0,
@@ -91,6 +92,11 @@ class NBS_Visits {
 			'checklist'   => NBS_Repo::json($check),
 			'material'    => NBS_Repo::json($mat),
 			'fields'      => NBS_Repo::json(NBS_Lists::sanitize_fields($d['fields'] ?? [])),
+			// Kortet är en behandling: varje kontrollerat samhälle får behandlingen i Bihälsa.
+			'treatment'   => NBS_Repo::is_uuid($d['treatment']['id'] ?? '') ? NBS_Repo::json([
+				'id'   => strtolower($d['treatment']['id']),
+				'kill' => isset($d['treatment']['kill']) && is_numeric($d['treatment']['kill']) ? max(0, min(100, (float) $d['treatment']['kill'])) : null,
+			]) : null,
 		];
 	}
 
@@ -121,6 +127,9 @@ class NBS_Visits {
 			'created_at' => NBS_DB::now(),
 			'created_by' => get_current_user_id() ?: null,
 		]);
+		if ($wpdb->last_error) {
+			return new WP_Error('nbs_db', 'Skötselkortet kunde inte sparas: ' . $wpdb->last_error, ['status' => 500]);
+		}
 		NBS_Repo::audit('template', $id, 'create', ['name' => $row['name']]);
 		return self::template($org_id, $id);
 	}
@@ -454,6 +463,10 @@ class NBS_Visits {
 				NBS_Entities::patch($org_id, 'colony', $i['colony_id'], ['strength' => max(1, min(5, $s))]);
 			}
 		}
+		$r = self::health_records($org_id, $v, $fields, $ins, $name, $tpl['treatment'] ?? null);
+		if (is_wp_error($r)) {
+			return $r;
+		}
 		NBS_Events::add($org_id, 'besok', [
 			'apiary_id' => $v['apiary_id'],
 			'other_id'  => $id,
@@ -471,6 +484,78 @@ class NBS_Visits {
 		return self::visit($org_id, $id);
 	}
 
+	/**
+	 * Bihälsoposter från besöket (för varroamodellen): fält kopplade till en varroamätning,
+	 * behandlingsmedel och förväntad avdödning, samt behandlingsmedel som förbrukats som material.
+	 * Posterna får besökets id och tas bort om besöket öppnas igen.
+	 */
+	private static function health_records($org_id, $v, $fields, $ins, $name, $card_treatment = null) {
+		$varroa = [];
+		$treat  = null;
+		$kill   = null;
+		foreach ($fields as $f) {
+			$maps = (string) ($f['maps'] ?? '');
+			if (strpos($maps, 'varroa:') === 0) {
+				$varroa[$f['key']] = substr($maps, 7);
+			} elseif ($maps === 'treatment') {
+				$treat = $f['key'];
+			} elseif ($maps === 'kill') {
+				$kill = $f['key'];
+			}
+		}
+		// Behandlingsmedlen och vilken lagerartikel de förbrukar.
+		$list    = NBS_Lists::get_by_key($org_id, 'behandling');
+		$items   = [];
+		$by_item = [];
+		foreach ($list ? NBS_Lists::items($org_id, $list['id']) : [] as $it) {
+			$items[$it['id']] = $it;
+			$mat              = (string) ($it['data']->material ?? '');
+			if ($mat !== '') {
+				$by_item[$mat] = $it['id'];
+			}
+		}
+		$from_material = [];
+		foreach ((array) $v['material'] as $m) {
+			if (empty($m['skip']) && !empty($m['qty']) && $m['qty'] > 0 && isset($by_item[$m['item_id'] ?? ''])) {
+				$from_material[] = $by_item[$m['item_id']];
+			}
+		}
+		$num  = function ($x) {
+			$x = str_replace(',', '.', (string) $x);
+			return $x !== '' && is_numeric($x) ? (float) $x : null;
+		};
+		$base = ['rec_date' => $v['date'], 'apiary_id' => $v['apiary_id'], 'visit_id' => $v['id'], 'note' => 'Besök: ' . $name];
+		foreach ($ins as $i) {
+			$data = (array) $i['data'];
+			$rows = [];
+			foreach ($varroa as $key => $method) {
+				if (($val = $num($data[$key] ?? '')) !== null) {
+					$rows[] = ['type' => 'varroa', 'method' => $method, 'value' => $val];
+				}
+			}
+			$given = $kill ? $num($data[$kill] ?? '') : null;
+			$done  = [];
+			$tid   = $treat ? (string) ($data[$treat] ?? '') : '';
+			$card  = is_array($card_treatment) && isset($items[$card_treatment['id'] ?? '']) ? $card_treatment['id'] : '';
+			foreach (array_merge(isset($items[$tid]) ? [$tid] : [], $card ? [$card] : [], $from_material) as $t) {
+				if (isset($done[$t])) {
+					continue;
+				}
+				$done[$t] = true;
+				// Avdödning: fältet i kupkontrollen, kortets värde, annars behandlingsmedlets.
+				$k      = $given ?? ($t === $card && isset($card_treatment['kill']) ? (float) $card_treatment['kill'] : null);
+				$rows[] = ['type' => 'behandling', 'treatment_id' => $t, 'value' => $k ?? $num($items[$t]['data']->avdodning ?? '')];
+			}
+			foreach ($rows as $row) {
+				$res = NBS_Entities::save($org_id, 'health', $row + ['colony_id' => $i['colony_id']] + $base);
+				if (is_wp_error($res)) {
+					return $res;
+				}
+			}
+		}
+		return true;
+	}
+
 	/** Öppnar ett avslutat besök igen: lagerbokningar och historik ångras. */
 	public static function reopen($org_id, $id) {
 		global $wpdb;
@@ -486,6 +571,7 @@ class NBS_Visits {
 			}
 		}
 		$wpdb->delete(NBS_DB::table('events'), ['org_id' => $org_id, 'type' => 'besok', 'other_id' => $id]);
+		$wpdb->delete(NBS_Entities::table('health'), ['org_id' => $org_id, 'visit_id' => $id]);
 		$wpdb->update(self::t('visits'), ['status' => 'ongoing', 'batches' => null, 'done_at' => null, 'updated_at' => NBS_DB::now()], ['id' => $id, 'org_id' => $org_id]);
 		NBS_Repo::audit('visit', $id, 'update', ['status' => 'reopened']);
 		return self::visit($org_id, $id);

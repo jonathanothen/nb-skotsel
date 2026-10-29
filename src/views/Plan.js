@@ -3,8 +3,8 @@ import { api } from '../api';
 import { href, go } from '../router';
 import { useMe } from '../App';
 import { useRegister, today } from '../register';
-import { useLoad, Loading, ErrorBox, Button, Empty, useToast } from '../ui';
-import { useRecords, useModules, RecordForm, SubTabs, YearSelect, thisYear } from '../records';
+import { useLoad, Loading, ErrorBox, Button, Empty, Modal, useToast } from '../ui';
+import { useRecords, useModules, RecordForm, SubTabs, YearSelect, thisYear, saveRecord } from '../records';
 import { FieldsModal } from '../reg-ui';
 
 /* ISO-veckor */
@@ -48,6 +48,8 @@ export default function Plan( { route } ) {
 	const [ modules, , reloadModules ] = useModules();
 	const [ editing, setEditing ] = useState( null );
 	const [ fieldsOpen, setFieldsOpen ] = useState( false );
+	const [ picking, setPicking ] = useState( false );
+	const [ catalog ] = useLoad( () => api( 'dragkalender' ) );
 	const tab = route[ 0 ] || 'ar';
 
 	if ( reg.error || error ) {
@@ -84,21 +86,26 @@ export default function Plan( { route } ) {
 				<div className="nbs-row-actions">
 					<YearSelect value={ year } onChange={ setYear } />
 					{ me.can.manage && <Button variant="ghost" onClick={ () => setFieldsOpen( true ) }>Egna fält</Button> }
+					{ me.can.write && <Button variant="ghost" onClick={ () => setPicking( true ) }>+ Drag</Button> }
 					{ me.can.write && <Button onClick={ () => setEditing( { kind: 'activity', week_start: isoWeek(), week_end: isoWeek(), scope: { all: true } } ) }>+ Aktivitet</Button> }
 				</div>
 			</header>
 			<SubTabs label="Driftplan" current={ tab } tabs={ [ [ 'ar', 'Årsplan', href( 'driftplan' ) ], [ 'vecka', 'Veckans arbete', href( 'driftplan/vecka' ) ] ] } />
+			{ plan.length > 0 && ! plan.some( ( p ) => p.kind !== 'drag' ) && me.can.manage && (
+				<p className="nbs-muted">Inga aktiviteter än. <button type="button" className="nbs-link-btn" onClick={ importPlan }>Lägg in driftplanen från driftplan.xlsx</button> eller lägg till egna med "+ Aktivitet".</p>
+			) }
 			{ plan.length === 0 ? (
 				<Empty title="Driftplanen är tom">
-					<p>Lägg in driftplanen från driftplan.xlsx – 35 aktiviteter med kategorier, veckor, rutinstatus och kopplade skötselkort, plus dragkalendern. Allt kan ändras efteråt.</p>
+					<p>Lägg in driftplanen från driftplan.xlsx – 35 aktiviteter med kategorier, veckor, rutinstatus och kopplade skötselkort. Allt kan ändras efteråt. Dragen vid dina bigårdar lägger du till själv med "+ Drag".</p>
 					{ me.can.manage && <Button onClick={ importPlan }>Lägg in driftplanen</Button> }
 				</Empty>
 			) : tab === 'vecka' ? (
-				<WeekView plan={ plan } year={ year } templates={ templates } onDone={ toggleDone } />
+				<WeekView plan={ plan } year={ year } templates={ templates } catalog={ catalog } onDone={ toggleDone } />
 			) : (
-				<YearView plan={ plan } year={ year } templates={ templates } onOpen={ setEditing } onDone={ toggleDone } />
+				<YearView plan={ plan } year={ year } templates={ templates } catalog={ catalog } onOpen={ setEditing } onDone={ toggleDone } />
 			) }
 			{ editing && <PlanForm item={ editing } templates={ templates } custom={ modules.fields.plan || [] } onClose={ () => setEditing( null ) } onSaved={ () => setStamp( ( s ) => s + 1 ) } /> }
+			{ picking && <DragPicker catalog={ catalog } plan={ plan } onClose={ () => setPicking( false ) } onSaved={ () => setStamp( ( s ) => s + 1 ) } /> }
 			{ fieldsOpen && <FieldsModal type="plan" initial={ modules.fields.plan || [] } onSaved={ reloadModules } onClose={ () => setFieldsOpen( false ) } /> }
 		</div>
 	);
@@ -106,11 +113,12 @@ export default function Plan( { route } ) {
 
 /* ------------------------------------------------------------------ Årsplan */
 
-function YearView( { plan, year, templates, onOpen, onDone } ) {
+function YearView( { plan, year, templates, catalog, onOpen, onDone } ) {
+	const plant = plantOf( catalog );
 	const reg = useRegister();
 	const me = useMe();
 	const [ cat, setCat ] = useState( '' );
-	const [ showDrag, setShowDrag ] = useState( false );
+	const [ showDrag, setShowDrag ] = useState( true );
 	const now = year === thisYear() ? isoWeek() : null;
 	const tpl = Object.fromEntries( templates.map( ( t ) => [ t.id, t ] ) );
 	// Månadsetiketter: veckan där månaden börjar.
@@ -122,7 +130,7 @@ function YearView( { plan, year, templates, onOpen, onDone } ) {
 		const cats = [ ...new Set( acts.map( ( p ) => p.category_id || '' ) ) ];
 		cats.forEach( ( c ) => g.push( [ reg.itemName( c ) || 'Utan kategori', reg.itemColor( c ) || '#A8741A', acts.filter( ( p ) => ( p.category_id || '' ) === c ).sort( ( a, b ) => a.week_start - b.week_start ) ] ) );
 		if ( ! cat ) {
-			g.push( [ 'Dragkalender', '#4A8A5A', plan.filter( ( p ) => p.kind === 'drag' ).sort( ( a, b ) => a.week_start - b.week_start ), true ] );
+			g.push( [ 'Drag vid bigårdarna', '#4A8A5A', plan.filter( ( p ) => p.kind === 'drag' ).sort( ( a, b ) => a.week_start - b.week_start ), true ] );
 		}
 		return g;
 	}, [ plan, cat ] ); // eslint-disable-line react-hooks/exhaustive-deps
@@ -166,10 +174,11 @@ function YearView( { plan, year, templates, onOpen, onDone } ) {
 											<span className="nbs-gantt-meta">
 												{ p.status_id && <span className="nbs-chip" style={ { '--c': reg.itemColor( p.status_id ) || '#999' } }>{ reg.itemName( p.status_id ) }</span> }
 												{ t && <a href={ href( 'besok/kort/' + t.id ) } className="nbs-chip is-card">{ t.name }</a> }
-												{ p.owner && <span className="nbs-muted">{ p.owner }</span> }
+												{ p.kind !== 'drag' && p.owner && <span className="nbs-muted">{ p.owner }</span> }
+												{ p.kind === 'drag' && <DragMeta plant={ plant( p ) } scope={ p.scope } /> }
 											</span>
 										</div>
-										<button type="button" className="nbs-gantt-bar" style={ { gridColumn: `${ col( p.week_start ) } / ${ Number( col( p.week_end ) ) + 1 }`, background: p.kind === 'drag' ? '#4A8A5A' : color } } onClick={ () => onOpen( p ) } title={ `${ p.name }, v. ${ p.week_start }–${ p.week_end }` } aria-label={ `${ p.name }, vecka ${ p.week_start } till ${ p.week_end }` } />
+										<button type="button" className="nbs-gantt-bar" style={ { gridColumn: `${ col( p.week_start ) } / ${ Number( col( p.week_end ) ) + 1 }`, background: p.kind === 'drag' ? ( plant( p ) && plant( p ).color ) || '#4A8A5A' : color } } onClick={ () => onOpen( p ) } title={ `${ p.name }, v. ${ p.week_start }–${ p.week_end }` } aria-label={ `${ p.name }, vecka ${ p.week_start } till ${ p.week_end }` } />
 										{ now && <span className="nbs-gantt-nowline" style={ { gridColumn: col( now ) } } /> }
 									</div>
 								);
@@ -184,7 +193,7 @@ function YearView( { plan, year, templates, onOpen, onDone } ) {
 
 /* ------------------------------------------------------------------ Veckans arbete */
 
-function WeekView( { plan, year, templates, onDone } ) {
+function WeekView( { plan, year, templates, catalog, onDone } ) {
 	const reg = useRegister();
 	const me = useMe();
 	const toast = useToast();
@@ -227,7 +236,7 @@ function WeekView( { plan, year, templates, onDone } ) {
 				<Button small variant="ghost" onClick={ () => setWeek( ( w ) => Math.min( 52, w + 1 ) ) } aria-label="Nästa vecka">→</Button>
 				{ year === thisYear() && week !== isoWeek() && <button type="button" className="nbs-link-btn" onClick={ () => setWeek( isoWeek() ) }>Denna vecka</button> }
 			</div>
-			{ drag.length > 0 && <p className="nbs-muted">Drag nu: { drag.map( ( d ) => d.name ).join( ', ' ) }</p> }
+			{ drag.length > 0 && <p className="nbs-muted">Drag nu: { drag.map( ( d ) => d.name + scopeText( reg, d.scope ) ).join( ', ' ) }</p> }
 			<ErrorBox error={ error } />
 			{ ! visits && ! error && <Loading /> }
 			{ visits && acts.length === 0 && <Empty title="Inget planerat den här veckan" /> }
@@ -333,8 +342,107 @@ function PlanForm( { item, templates, custom, onClose, onSaved } ) {
 		{ key: 'owner', label: 'Ansvarig', type: 'text', when: ( f ) => f.kind !== 'drag' },
 		{ key: 'status_id', label: 'Rutinstatus', type: 'ref', ref: 'rutinstatus', when: ( f ) => f.kind !== 'drag' },
 		{ key: 'template_id', label: 'Skötselkort', type: 'select', options: templates.filter( ( t ) => ! t.archived ).map( ( t ) => [ t.id, t.name ] ), help: 'Med ett skötselkort kan aktiviteten bli besök per bigård under Veckans arbete.', when: ( f ) => f.kind !== 'drag' },
-		{ key: 'scope', label: 'Gäller', wide: true, when: ( f ) => f.kind !== 'drag' && f.template_id, render: ( form, set ) => <ScopeField form={ form } set={ set } /> },
+		{ key: 'scope', label: 'Gäller', wide: true, when: ( f ) => f.kind === 'drag' || f.template_id, render: ( form, set ) => <ScopeField form={ form } set={ set } /> },
 		{ key: 'note', label: 'Kommentar', type: 'textarea' },
 	];
 	return <RecordForm type="plan" wide title={ item.id ? item.name : 'Ny aktivitet' } fields={ fields } item={ item.id ? item : {} } preset={ item.id ? {} : item } custom={ custom } onClose={ onClose } onSaved={ onSaved } />;
+}
+
+/* ------------------------------------------------------------------ Drag från dragkalendern */
+
+const LEVEL = [ '', 'lite', 'bra', 'mycket bra' ];
+
+/** Växten i dragkalendern som en dragrad hör till (source = nbd:<slug>). */
+const plantOf = ( catalog ) => {
+	const by = Object.fromEntries( ( ( catalog && catalog.plants ) || [] ).map( ( pl ) => [ 'nbd:' + pl.slug, pl ] ) );
+	return ( p ) => by[ p.source ] || null;
+};
+
+/** "(Gäddviken, Österbo)" för drag som bara gäller vissa bigårdar. */
+function scopeText( reg, scope ) {
+	if ( ! scope || scope.all !== false ) {
+		return '';
+	}
+	const names = scopeApiaries( reg, scope ).map( ( a ) => a.name );
+	return names.length ? ` (${ names.join( ', ' ) })` : '';
+}
+
+function DragMeta( { plant, scope } ) {
+	const reg = useRegister();
+	const where = scopeText( reg, scope ).replace( /^ \(|\)$/g, '' );
+	return (
+		<>
+			{ plant && plant.nectar > 0 && <span className="nbs-chip" style={ { '--c': '#D99A2B' } } title="Nektar">Nektar { LEVEL[ plant.nectar ] }</span> }
+			{ plant && plant.pollen > 0 && <span className="nbs-chip" style={ { '--c': '#C8963D' } } title="Pollen">Pollen { LEVEL[ plant.pollen ] }</span> }
+			{ plant && plant.honeydew > 0 && <span className="nbs-chip" style={ { '--c': '#6B8E4E' } } title="Honungsdagg">Honungsdagg</span> }
+			<span className="nbs-muted">{ where || 'Alla bigårdar' }</span>
+		</>
+	);
+}
+
+/**
+ * Lägg till drag: sök bland växterna i dragkalendern och välj de som finns vid bigårdarna.
+ * Veckorna kommer från dragkalendern och kan ändras på raden efteråt.
+ */
+function DragPicker( { catalog, plan, onClose, onSaved } ) {
+	const toast = useToast();
+	const [ q, setQ ] = useState( '' );
+	const [ picked, setPicked ] = useState( [] );
+	const [ form, setForm ] = useState( { scope: { all: true } } );
+	const [ busy, setBusy ] = useState( false );
+	const have = new Set( plan.filter( ( p ) => p.kind === 'drag' && p.source ).map( ( p ) => p.source.replace( /^nbd:/, '' ) ) );
+	if ( ! catalog ) {
+		return <Modal title="Lägg till drag" onClose={ onClose }><Loading /></Modal>;
+	}
+	if ( ! catalog.available ) {
+		return (
+			<Modal title="Lägg till drag" onClose={ onClose }>
+				<p>Dragkalendern (pluginet Nordiska Bin – Dragkalender) är inte aktiverad på webbplatsen. Aktivera den för att välja drag bland växterna, eller lägg till ett drag för hand med "+ Aktivitet" och typen Drag.</p>
+			</Modal>
+		);
+	}
+	const norm = ( s ) => String( s || '' ).toLowerCase();
+	const list = catalog.plants.filter( ( pl ) => ! q || norm( pl.name ).includes( norm( q ) ) || norm( pl.latin ).includes( norm( q ) ) );
+	const mine = catalog.mine.filter( ( s ) => ! have.has( s ) && ! picked.includes( s ) );
+	const toggle = ( slug ) => setPicked( ( p ) => ( p.includes( slug ) ? p.filter( ( x ) => x !== slug ) : [ ...p, slug ] ) );
+	const save = async () => {
+		setBusy( true );
+		try {
+			for ( const slug of picked ) {
+				const pl = catalog.plants.find( ( x ) => x.slug === slug );
+				await saveRecord( 'plan', { kind: 'drag', name: pl.name, note: pl.latin, week_start: pl.week_start || 1, week_end: pl.week_end || pl.week_start || 1, source: 'nbd:' + slug, scope: form.scope } );
+			}
+			toast( `${ picked.length } drag lades till i driftplanen.` );
+			onSaved();
+			onClose();
+		} catch ( e ) {
+			toast( e.message, 'error' );
+		}
+		setBusy( false );
+	};
+	return (
+		<Modal wide title="Lägg till drag vid bigårdarna" onClose={ onClose } footer={ <><Button variant="ghost" onClick={ onClose }>Avbryt</Button><Button onClick={ save } disabled={ busy || ! picked.length }>{ busy ? 'Sparar…' : `Lägg till ${ picked.length || '' } drag` }</Button></> }>
+			<p className="nbs-muted">Välj växterna som finns vid dina bigårdar. Uppgifterna kommer från dragkalendern ({ catalog.plants.length } växter).</p>
+			<div className="nbs-toolbar">
+				<input type="search" value={ q } onChange={ ( e ) => setQ( e.target.value ) } placeholder="Sök växt, t.ex. sälg, klöver, lind" aria-label="Sök växt" />
+				{ mine.length > 0 && <button type="button" className="nbs-link-btn" onClick={ () => setPicked( ( p ) => [ ...p, ...mine ] ) }>Välj från Min dragkalender ({ mine.length })</button> }
+			</div>
+			<ul className="nbs-drag-pick">
+				{ list.slice( 0, 80 ).map( ( pl ) => (
+					<li key={ pl.slug } className={ have.has( pl.slug ) ? 'is-have' : '' }>
+						<label>
+							<input type="checkbox" disabled={ have.has( pl.slug ) } checked={ have.has( pl.slug ) || picked.includes( pl.slug ) } onChange={ () => toggle( pl.slug ) } />
+							<span className="nbs-drag-dot" style={ { background: pl.color || '#4A8A5A' } } />
+							<strong>{ pl.name }</strong>
+							<span className="nbs-muted">{ pl.latin } · v. { pl.week_start }–{ pl.week_end }{ pl.nectar ? ` · nektar ${ LEVEL[ pl.nectar ] }` : '' }{ pl.pollen ? ` · pollen ${ LEVEL[ pl.pollen ] }` : '' }{ have.has( pl.slug ) ? ' · finns redan' : '' }</span>
+						</label>
+					</li>
+				) ) }
+				{ list.length > 80 && <li className="nbs-muted">{ list.length - 80 } till – sök för att hitta fler.</li> }
+				{ ! list.length && <li className="nbs-muted">Ingen växt matchar.</li> }
+			</ul>
+			{ picked.length > 0 && <p><strong>Valda:</strong> { picked.map( ( s ) => ( catalog.plants.find( ( x ) => x.slug === s ) || { name: s } ).name ).join( ', ' ) }</p> }
+			<ScopeField form={ form } set={ ( k, v ) => setForm( ( f ) => ( { ...f, [ k ]: v } ) ) } />
+		</Modal>
+	);
 }

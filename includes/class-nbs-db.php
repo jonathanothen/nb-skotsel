@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
  */
 class NBS_DB {
 
-	const DB_VERSION = '6';
+	const DB_VERSION = '10';
 
 	public static function table($name) {
 		global $wpdb;
@@ -60,6 +60,7 @@ class NBS_DB {
 			description text NULL,
 			kind varchar(20) NOT NULL DEFAULT 'custom',
 			fields longtext NULL,
+			treatment longtext NULL,
 			sort int(11) NOT NULL DEFAULT 0,
 			archived tinyint(1) NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL,
@@ -126,6 +127,9 @@ $cols			data longtext NULL,
 			PRIMARY KEY  (id),
 			KEY org_id (org_id)$keys
 		) $c;");
+			foreach ($def['cols'] as $col => $kind) {
+				self::ensure_column($t, $col, str_replace('NOT NULL', 'NULL', NBS_Entities::sql_type($kind)));
+			}
 		}
 
 		$events = self::table('events');
@@ -256,7 +260,19 @@ $cols			data longtext NULL,
 			KEY colony (org_id,colony_id)
 		) $c;");
 
+		// dbDelta lägger inte alltid till nya kolumner i befintliga tabeller (t.ex. på SQLite).
+		self::ensure_column($tpl, 'treatment', 'longtext NULL');
+
 		update_option('nbs_db_version', self::DB_VERSION);
+	}
+
+	/** Lägger till en kolumn om den saknas. */
+	private static function ensure_column($table, $column, $definition) {
+		global $wpdb;
+		$cols = $wpdb->get_col("SHOW COLUMNS FROM $table", 0); // phpcs:ignore
+		if ($cols && !in_array($column, array_map('strtolower', $cols), true)) {
+			$wpdb->query("ALTER TABLE $table ADD COLUMN $column $definition"); // phpcs:ignore
+		}
 	}
 
 	public static function now() {

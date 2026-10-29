@@ -8,6 +8,7 @@ import { FieldInput } from '../fields';
 import { useRecords, useModules, RecordForm, SubTabs, YearSelect, Table, thisYear, fmtNum } from '../records';
 import { FieldsModal } from '../reg-ui';
 import { useStock, unit, fmtQty } from '../stock';
+import VarroaModel from './VarroaModel';
 
 export const HEALTH_TYPES = [ [ 'varroa', 'Varroamätning' ], [ 'behandling', 'Behandling' ], [ 'sjukdom', 'Sjukdomsmisstanke' ], [ 'observation', 'Observation' ] ];
 export const VARROA_METHODS = [
@@ -40,7 +41,7 @@ export function healthText( h, reg ) {
 		return `${ h.method || 'Varroa' }: ${ fmtNum( h.value ) } ${ varroaUnit( h.method ) }`;
 	}
 	if ( h.type === 'behandling' ) {
-		return `${ reg.itemName( h.treatment_id ) || 'Behandling' }${ h.round ? `, omgång ${ h.round }` : '' }`;
+		return `${ reg.itemName( h.treatment_id ) || 'Behandling' }${ h.round ? `, omgång ${ h.round }` : '' }${ h.value !== null && h.value !== undefined && h.value !== '' ? `, ${ fmtNum( h.value ) } % avdödning` : '' }`;
 	}
 	if ( h.type === 'sjukdom' ) {
 		return `${ h.disease || 'Sjukdom' } – ${ ( H_STATUS.find( ( s ) => s[ 0 ] === h.status ) || [ '', '' ] )[ 1 ].toLowerCase() }`;
@@ -74,10 +75,12 @@ export default function Health( { route } ) {
 					{ me.can.write && <a className="nbs-btn is-primary" href={ href( 'bihalsa/registrera' ) }>+ Registrera</a> }
 				</div>
 			</header>
-			<SubTabs label="Bihälsa" current={ tab } tabs={ [ [ 'oversikt', 'Översikt', href( 'bihalsa' ) ], [ 'registrera', 'Registrera', href( 'bihalsa/registrera' ) ], [ 'logg', 'Logg', href( 'bihalsa/logg' ) ], [ 'foder', 'Foder', href( 'bihalsa/foder' ) ] ] } />
+			<SubTabs label="Bihälsa" current={ tab } tabs={ [ [ 'oversikt', 'Översikt', href( 'bihalsa' ) ], [ 'registrera', 'Registrera', href( 'bihalsa/registrera' ) ], [ 'behandlingar', 'Behandlingar', href( 'bihalsa/behandlingar' ) ], [ 'logg', 'Logg', href( 'bihalsa/logg' ) ], [ 'foder', 'Foder', href( 'bihalsa/foder' ) ], [ 'modell', 'Varroamodell', href( 'bihalsa/modell' ) ] ] } />
 			{ tab === 'registrera' && <Register onDone={ bump } /> }
 			{ tab === 'logg' && <Log stamp={ stamp } custom={ modules.fields.health || [] } onChanged={ bump } /> }
+			{ tab === 'behandlingar' && <Log key="behandlingar" initialType="behandling" stamp={ stamp } custom={ modules.fields.health || [] } onChanged={ bump } /> }
 			{ tab === 'foder' && <Feed target={ modules.settings.feed_target } /> }
+			{ tab === 'modell' && <VarroaModel /> }
 			{ tab === 'oversikt' && <Overview stamp={ stamp } /> }
 			{ fieldsOpen && <FieldsModal type="health" initial={ modules.fields.health || [] } onSaved={ reloadModules } onClose={ () => setFieldsOpen( false ) } /> }
 		</div>
@@ -149,6 +152,7 @@ function Register( { onDone } ) {
 	const [ values, setValues ] = useState( {} );
 	const [ treatment, setTreatment ] = useState( '' );
 	const [ round, setRound ] = useState( '1' );
+	const [ killPct, setKillPct ] = useState( '' );
 	const [ item, setItem ] = useState( '' );
 	const [ qty, setQty ] = useState( '' );
 	const [ from, setFrom ] = useState( '' );
@@ -179,6 +183,7 @@ function Register( { onDone } ) {
 		if ( t && t.data && t.data.material ) {
 			setItem( t.data.material );
 		}
+		setKillPct( t && t.data && t.data.avdodning !== undefined && t.data.avdodning !== null ? String( t.data.avdodning ) : '' );
 	};
 	const places = stock && item ? ( stock.bal[ item ] || [] ).filter( ( b ) => b.qty > 0 && b.type !== 'hive' ) : [];
 
@@ -198,7 +203,7 @@ function Register( { onDone } ) {
 			} else {
 				const body = { type, rec_date: date, colony_ids: chosen, note };
 				if ( type === 'behandling' ) {
-					Object.assign( body, { treatment_id: treatment || null, round: round || null } );
+					Object.assign( body, { treatment_id: treatment || null, round: round || null, value: killPct === '' ? null : killPct } );
 					if ( item && qty && from ) {
 						const [ ft, fid ] = from.split( ':' );
 						body.stock = { item_id: item, qty, from: { type: ft, id: fid } };
@@ -272,6 +277,7 @@ function Register( { onDone } ) {
 						<div className="nbs-form-row">
 							<FieldInput field={ { key: 'h_treat', label: 'Behandlingsmedel', type: 'ref', ref: 'behandling' } } value={ treatment } onChange={ pickTreatment } refs={ reg.refs } />
 							<FieldInput field={ { key: 'h_round', label: 'Omgång', type: 'number', min: 1 } } value={ round } onChange={ setRound } />
+							<FieldInput field={ { key: 'h_kill', label: 'Förväntad avdödning', type: 'number', unit: '%', min: 0, max: 100, help: 'Används i varroamodellen. Förslaget kommer från behandlingsmedlet.' } } value={ killPct } onChange={ setKillPct } />
 						</div>
 						{ stock && (
 							<div className="nbs-subform">
@@ -342,6 +348,7 @@ export function healthFields( diseases = [], current = '' ) {
 		{ key: 'colony_id', label: 'Samhälle', type: 'ref', ref: '@colony' },
 		{ key: 'method', label: 'Metod', type: 'select', options: VARROA_METHODS.map( ( m ) => m[ 0 ] ), when: ( f ) => f.type === 'varroa' },
 		{ key: 'value', label: 'Värde', type: 'number', when: ( f ) => f.type === 'varroa' },
+		{ key: 'value', label: 'Förväntad avdödning (%)', type: 'number', when: ( f ) => f.type === 'behandling' },
 		{ key: 'treatment_id', label: 'Behandlingsmedel', type: 'ref', ref: 'behandling', when: ( f ) => f.type === 'behandling' },
 		{ key: 'round', label: 'Omgång', type: 'number', when: ( f ) => f.type === 'behandling' },
 		{ key: 'disease', label: 'Sjukdom', type: 'select', options: diseaseOptions( diseases, current ), when: ( f ) => f.type === 'sjukdom' },
@@ -351,9 +358,9 @@ export function healthFields( diseases = [], current = '' ) {
 	];
 }
 
-function Log( { stamp, custom, onChanged } ) {
+function Log( { stamp, custom, onChanged, initialType = '' } ) {
 	const reg = useRegister();
-	const [ type, setType ] = useState( '' );
+	const [ type, setType ] = useState( initialType );
 	const [ year, setYear ] = useState( thisYear() );
 	const [ rows, error, reload ] = useRecords( 'health', { type, year }, [ stamp ] );
 	const [ editing, setEditing ] = useState( null );

@@ -11,6 +11,9 @@ if (!defined('ABSPATH')) {
  */
 class NBS_Lists {
 
+	/** Varroamätningar som ett fält i ett skötselkort kan registrera (samma metoder som i Bihälsa). */
+	const VARROA_MAPS = ['varroa:Naturligt nedfall', 'varroa:Alkoholtvätt', 'varroa:Sockerrullning', 'varroa:Drönaryngel'];
+
 	const FIELD_TYPES = ['text', 'textarea', 'number', 'scale', 'select', 'multiselect', 'bool', 'date', 'ref', 'color', 'url'];
 
 	private static function t($name) {
@@ -58,9 +61,17 @@ class NBS_Lists {
 				$field['min'] = isset($f['min']) && is_numeric($f['min']) ? max(0, (int) $f['min']) : 1;
 				$field['max'] = isset($f['max']) && is_numeric($f['max']) ? min(10, max($field['min'] + 1, (int) $f['max'])) : 5;
 			}
-			// Skötselkort: fältet kan uppdatera samhällets styrka när besöket avslutas.
-			if (in_array($type, ['number', 'scale'], true) && ($f['maps'] ?? '') === 'strength') {
+			// Skötselkort: fältet kan uppdatera samhällets styrka eller bli en bihälsopost när besöket
+			// avslutas (varroamätning med metod, behandlingsmedel, förväntad avdödning).
+			$maps = (string) ($f['maps'] ?? '');
+			if (in_array($type, ['number', 'scale'], true) && $maps === 'strength') {
 				$field['maps'] = 'strength';
+			}
+			if ($type === 'number' && (in_array($maps, self::VARROA_MAPS, true) || $maps === 'kill')) {
+				$field['maps'] = $maps;
+			}
+			if ($type === 'ref' && $maps === 'treatment') {
+				$field['maps'] = 'treatment';
 			}
 			if ($type === 'number') {
 				foreach (['min', 'max', 'step'] as $k) {

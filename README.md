@@ -85,6 +85,30 @@ per samhälle, partikoder (ÅR-BIGÅRD-NR), tappning med burkar från lagret och
   samhällen utan kupa får en ny. Nya kupor kan få ett nytt samhälle var.
 - Inställningar → Uppdateringar: sök efter nytt i biblioteket och pluginet, och uppdatera pluginet direkt.
 
+### Varroamodell (Bihälsa → Varroamodell)
+
+- `src/varroa-model.js` är Randy Olivers varroamodell (scientificbeekeeping.com) överförd från kalkylbladet
+  *Randys-Varroa-Model-Österbo.xlsx* (bladet Modersamhället): 25 perioder per år, förökning i arbetar- och
+  drönaryngel, dödlighet, invandring, avdrift, åldrande kvalster och behandlingar. Kontrollerad mot bladet
+  (avvikelse < 0,001 %).
+- Behandlingar och varroamätningar hämtas från Bihälsa per samhälle eller bigård. Behandlingsmedlen har
+  *Avdödning* och *Verkar bara på kvalster på bina* (t.ex. oxalsyra, räknas ned med andelen kvalster utanför yngel).
+  Planerade behandlingar kan provas i modellen. Startnivån kan anpassas efter mätningarna, och "Håller det?"
+  jämför mätningar med modellen och uppskattar behandlingarnas faktiska avdödning.
+
+### Skötselkort → Bihälsa
+
+- Ett kort kan vara en behandling (`templates.treatment`): varje kontrollerat samhälle får behandlingen.
+- Fält kan kopplas (`maps`) till styrka, varroamätning (metod), behandlingsmedel eller avdödning.
+- Behandlingsmedel som förbrukas som material blir också behandlingar.
+- Posterna får `visit_id` och tas bort om besöket öppnas igen.
+
+### Dragkalendern
+
+- Växterna läses från pluginet nb-dragkalender (`GET /dragkalender`). Inget läggs in automatiskt: "+ Drag" i
+  Driftplan lägger till de drag som finns vid bigårdarna som driftplansrader (`kind = drag`,
+  `source = nbd:<slug>`) med veckor och vilka bigårdar de gäller. Visas i årsplanen och i Veckans arbete.
+
 ### Körplanering
 
 `#/bigardar/rutt` – välj bigårdar eller en hel slinga, start/mål, optimera ordningen (OSRM-körtider,

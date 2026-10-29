@@ -47,6 +47,8 @@ class NBS_Starter {
 				['key' => 'metod', 'label' => 'Metod', 'type' => 'select', 'options' => ['Sublimering', 'Dropp', 'Avdunstning, kort', 'Avdunstning, lång', 'Remsor', 'Annat']],
 				['key' => 'dos', 'label' => 'Dos per samhälle', 'type' => 'text'],
 				['key' => 'karens', 'label' => 'Karens/restriktion', 'type' => 'text', 'help' => 'T.ex. inte med skattlådor på'],
+				['key' => 'avdodning', 'label' => 'Avdödning', 'type' => 'number', 'unit' => '%', 'min' => 0, 'max' => 100, 'help' => 'Ungefärlig andel av kvalstren som dör, för varroamodellen. Randy Oliver: syntetiska medel ca 95 %, stark myrsyra ca 90 %, svag myrsyra ca 50 %, oxalsyra i yngelfritt samhälle 80–95 %.'],
+				['key' => 'foretisk', 'label' => 'Verkar bara på kvalster på bina', 'type' => 'bool', 'help' => 'T.ex. oxalsyra: i ett samhälle med yngel når den bara kvalstren utanför cellerna, och modellen räknar ned avdödningen efter hur mycket yngel det finns.'],
 				['key' => 'material', 'label' => 'Lagerartikel', 'type' => 'ref', 'ref' => 'material'],
 			]],
 			'bigardstyper'  => ['Bigårdstyper', 'Vad en bigård används till.', []],
@@ -119,6 +121,7 @@ class NBS_Starter {
 	/** Fält som har tillkommit i grundlistorna efter att de skapats: [lista => [fältnycklar]]. */
 	const ADDED_FIELDS = [
 		'material' => ['behov_per_samhalle', 'bibliotek'],
+		'behandling' => ['avdodning', 'foretisk'],
 	];
 
 	/**
@@ -211,9 +214,9 @@ class NBS_Starter {
 				['name' => 'Socker', 'data' => ['form' => 'Torrt socker', 'torrsubstans' => 100, 'material' => '@material:Socker 15 kg']],
 			],
 			'behandling'   => [
-				['name' => 'Oxalsyra, sublimering', 'data' => ['amne' => 'Oxalsyra', 'metod' => 'Sublimering', 'karens' => 'Inte med skattlådor på', 'material' => '@material:Oxalsyra (sublimering)']],
-				['name' => 'Myrsyra, långtidsbehandling', 'data' => ['amne' => 'Myrsyra', 'metod' => 'Avdunstning, lång', 'karens' => 'Inte med skattlådor på', 'material' => '@material:Myrsyra']],
-				['name' => 'Myrsyra, snabbehandling (drönarramar)', 'data' => ['amne' => 'Myrsyra', 'metod' => 'Avdunstning, kort', 'material' => '@material:Myrsyra']],
+				['name' => 'Oxalsyra, sublimering', 'data' => ['amne' => 'Oxalsyra', 'metod' => 'Sublimering', 'karens' => 'Inte med skattlådor på', 'material' => '@material:Oxalsyra (sublimering)', 'avdodning' => 90, 'foretisk' => true]],
+				['name' => 'Myrsyra, långtidsbehandling', 'data' => ['amne' => 'Myrsyra', 'metod' => 'Avdunstning, lång', 'karens' => 'Inte med skattlådor på', 'material' => '@material:Myrsyra', 'avdodning' => 90]],
+				['name' => 'Myrsyra, snabbehandling (drönarramar)', 'data' => ['amne' => 'Myrsyra', 'metod' => 'Avdunstning, kort', 'material' => '@material:Myrsyra', 'avdodning' => 50]],
 			],
 			'bigardstyper' => [
 				['name' => 'Produktion', 'color' => '#D99A2B'],

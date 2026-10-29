@@ -725,3 +725,20 @@ ol.nbs-sheet-boxes { counter-reset: none; li::before { content: '□ '; } }
 }
 .nbs-hb-total td { font-weight: 700; border-top: 2px solid $line; }
 .nbs-hb-palette .nbs-h3 { margin: 16px 0 2px; }
+
+// ---- Varroamodell
+.nbs-vm-controls { flex-wrap: wrap; .nbs-field { min-width: 180px; } }
+.nbs-inline { display: flex; gap: 8px; align-items: center; input { max-width: 110px; } }
+.nbs-vm-chart { width: 100%; height: auto; display: block; margin: 8px 0 16px;
+	text { font-size: 11px; fill: #8a7660; }
+	.nbs-vm-grid { stroke: $sand-2; }
+	.nbs-vm-line { fill: none; stroke-width: 2.5; &.is-main { stroke: $honey-dark; } &.is-ghost { stroke: #c9b89a; stroke-dasharray: 5 4; } }
+	.nbs-vm-treat { stroke: $green; stroke-width: 2; opacity: .55; &.is-planned { stroke-dasharray: 4 3; } }
+	.nbs-vm-thr { stroke: $red; stroke-dasharray: 6 4; }
+	.nbs-vm-point { fill: $red; stroke: #fff; stroke-width: 1.5; } }
+.nbs-table tr.is-planned td { font-style: italic; }
+.nbs-vm-plan { margin-top: 16px; }
+.nbs-drag-pick { list-style: none; margin: 0 0 12px; padding: 0; max-height: 340px; overflow: auto; border: 1px solid $line; border-radius: 10px;
+	li { padding: 6px 10px; border-bottom: 1px solid $sand-2; &:last-child { border-bottom: 0; } &.is-have { opacity: .55; } }
+	label { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; cursor: pointer; } }
+.nbs-drag-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; align-self: center; }

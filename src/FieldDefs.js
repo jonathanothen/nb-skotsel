@@ -15,6 +15,29 @@ export const cleanFields = ( fields ) =>
 		options: optionsText !== undefined ? optionsText.split( ',' ).map( ( s ) => s.trim() ).filter( Boolean ) : f.options,
 	} ) );
 
+/** Skötselkort: vad ett fält blir när besöket avslutas (styrka, bihälsopost för varroamodellen). */
+export function mapOptions( f ) {
+	const none = [ '', 'Bara i besöket' ];
+	if ( f.type === 'scale' ) {
+		return [ none, [ 'strength', 'Uppdaterar samhällets styrka' ] ];
+	}
+	if ( f.type === 'number' ) {
+		return [
+			none,
+			[ 'strength', 'Uppdaterar samhällets styrka' ],
+			[ 'varroa:Naturligt nedfall', 'Varroamätning: naturligt nedfall (kvalster/dygn)' ],
+			[ 'varroa:Alkoholtvätt', 'Varroamätning: alkoholtvätt (% av bina)' ],
+			[ 'varroa:Sockerrullning', 'Varroamätning: sockerrullning (% av bina)' ],
+			[ 'varroa:Drönaryngel', 'Varroamätning: drönaryngel (% angripna celler)' ],
+			[ 'kill', 'Behandlingens avdödning (%)' ],
+		];
+	}
+	if ( f.type === 'ref' && f.ref === 'behandling' ) {
+		return [ none, [ 'treatment', 'Registrerar en behandling i Bihälsa' ] ];
+	}
+	return [ none ];
+}
+
 export default function FieldDefs( { fields, setFields, refLists, allowMaps } ) {
 	const upd = ( i, patch ) => setFields( ( fs ) => fs.map( ( f, j ) => ( j === i ? { ...f, ...patch } : f ) ) );
 	const move = ( i, d ) =>
@@ -65,8 +88,13 @@ export default function FieldDefs( { fields, setFields, refLists, allowMaps } ) 
 							<div className="nbs-field"><label>Till</label><input type="number" min="1" max="10" value={ f.max ?? 5 } onChange={ ( e ) => upd( i, { max: e.target.value } ) } /></div>
 						</div>
 					) }
-					{ allowMaps && ( f.type === 'number' || f.type === 'scale' ) && (
-						<label className="nbs-inline-check"><input type="checkbox" checked={ f.maps === 'strength' } onChange={ ( e ) => upd( i, { maps: e.target.checked ? 'strength' : '' } ) } /> Uppdaterar samhällets styrka när besöket avslutas</label>
+					{ allowMaps && mapOptions( f ).length > 1 && (
+						<div className="nbs-field">
+							<label htmlFor={ `nbs-fd-maps-${ i }` }>När besöket avslutas</label>
+							<select id={ `nbs-fd-maps-${ i }` } value={ f.maps || '' } onChange={ ( e ) => upd( i, { maps: e.target.value } ) }>
+								{ mapOptions( f ).map( ( [ v, l ] ) => <option key={ v } value={ v }>{ l }</option> ) }
+							</select>
+						</div>
 					) }
 					{ f.type === 'number' && (
 						<div className="nbs-form-row">
