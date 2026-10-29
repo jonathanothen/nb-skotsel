@@ -149,8 +149,11 @@ export function runModel( opts = {} ) {
 		// DQ: avdödning. Behandlingar som bara når kvalster på bina (t.ex. oxalsyra) räknas ned med
 		// andelen kvalster utanför yngel, som i Randy Olivers tabell. Flera i samma period kombineras.
 		let survive = 1 - Math.min( 1, Math.max( 0, kills[ p ] || 0 ) );
-		( o.treatments || [] ).filter( ( t ) => t.period === p ).forEach( ( t ) => {
-			survive *= 1 - Math.min( 1, Math.max( 0, t.kill ) ) * ( t.phoretic ? phoretic : 1 );
+		// Långtidsbehandlingar (t.ex. oxalsyra/glycerin-remsor) verkar i flera perioder i rad. Behandlingar
+		// som bara tar kvalster i yngel (yngeluttag, Samuel) räknas med andelen kvalster i yngel.
+		( o.treatments || [] ).filter( ( t ) => p >= t.period && p < t.period + Math.max( 1, t.periods || 1 ) ).forEach( ( t ) => {
+			const reach = t.phoretic ? phoretic : t.brood ? 1 - phoretic : 1;
+			survive *= 1 - Math.min( 1, Math.max( 0, t.kill ) ) * reach;
 		} );
 		const kill = 1 - survive;
 		const end = beforeTreat - beforeTreat * kill; // DS
@@ -247,24 +250,43 @@ export function fitStart( opts, measurements ) {
 }
 
 /**
- * Hur väl behandlingarna höll: för varje behandling jämförs första mätningen efter den (innan
- * nästa behandling) med modellen. Mäts det mer än modellen väntar har avdödningen varit lägre.
- * Uppskattad avdödning = 1 − (1 − förväntad) × uppmätt / modell.
+ * Hur väl behandlingarna höll. Behandlingar utan mätning emellan bedöms som en serie (t.ex. Samuel och
+ * oxalsyra samma dag och sedan oxalsyra en gång i veckan): den första mätningen efter serien jämförs
+ * med modellen. Mäts det mer än modellen väntar har avdödningen varit lägre än tänkt.
+ * Uppskattad avdödning = 1 − (1 − väntad) × uppmätt / modell.
  */
 export function checkTreatments( result, treatments, measurements ) {
-	const sorted = [ ...treatments ].sort( ( x, y ) => x.period - y.period );
-	return sorted.map( ( t, i ) => {
-		const next = sorted[ i + 1 ];
-		const after = measurements
-			.filter( ( m ) => MEASURES[ m.method ] && periodOf( m.date ) > t.period && ( ! next || periodOf( m.date ) <= next.period ) )
-			.sort( ( x, y ) => ( x.date < y.date ? -1 : 1 ) )[ 0 ];
+	const usable = measurements.filter( ( m ) => MEASURES[ m.method ] ).map( ( m ) => ( { ...m, period: periodOf( m.date ) } ) ).sort( ( x, y ) => ( x.date < y.date ? -1 : 1 ) );
+	const sorted = [ ...treatments ].sort( ( x, y ) => x.period - y.period || ( x.date < y.date ? -1 : 1 ) );
+	const end = ( t ) => t.period + Math.max( 1, t.periods || 1 );
+	const groups = [];
+	sorted.forEach( ( t ) => {
+		const g = groups[ groups.length - 1 ];
+		const gEnd = g ? Math.max( ...g.items.map( end ) ) : 0;
+		// Ny serie om det finns en mätning mellan förra seriens slut och den här behandlingen.
+		if ( ! g || usable.some( ( m ) => m.period >= gEnd && m.period <= t.period && ! ( m.period === t.period && m.date > t.date ) ) ) {
+			groups.push( { items: [ t ] } );
+		} else {
+			g.items.push( t );
+		}
+	} );
+	return groups.map( ( g, i ) => {
+		const first = g.items[ 0 ].period;
+		const last = Math.min( PERIODS, Math.max( ...g.items.map( end ) ) );
+		let left = 1;
+		for ( let q = first; q < last; q++ ) {
+			left *= 1 - result[ q ].kill;
+		}
+		const expected = 1 - left;
+		const next = groups[ i + 1 ];
+		const after = usable.find( ( m ) => m.period >= last && ( ! next || m.period <= next.items[ 0 ].period ) );
 		if ( ! after ) {
-			return { ...t, after: null };
+			return { items: g.items, expected, after: null };
 		}
 		const model = modelValue( result, after );
 		const ratio = model > 0 ? after.value / model : null;
-		const expected = t.phoretic ? t.kill * result[ t.period ].phoretic : t.kill;
 		const actual = ratio === null ? null : Math.max( 0, Math.min( 1, 1 - ( 1 - expected ) * ratio ) );
-		return { ...t, after, model, ratio, expected, actual };
+		const verdict = ratio === null ? null : ratio <= 1.3 ? 'held' : ratio <= 2 ? 'unsure' : 'short';
+		return { items: g.items, expected, after, model, ratio, actual, verdict };
 	} );
 }

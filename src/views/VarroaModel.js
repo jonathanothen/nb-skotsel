@@ -14,6 +14,9 @@ const STORE = 'nbs_varroamodel';
 /** Avdödning som förslag när behandlingsmedlet saknar värde (Randy Olivers tabell, ungefär). */
 const DEFAULT_KILL = { Sublimering: [ 0.9, true ], Dropp: [ 0.9, true ], 'Avdunstning, lång': [ 0.9, false ], 'Avdunstning, kort': [ 0.5, false ], Remsor: [ 0.95, false ] };
 
+/** "bara på bina", "bara i yngel", "i 3 perioder" */
+const effect = ( t ) => [ t.phoretic && 'bara på bina', t.brood && 'bara i yngel', t.periods > 1 && `i ${ t.periods } perioder` ].filter( Boolean ).join( ', ' );
+
 function treatmentKill( item, record ) {
 	const d = ( item && item.data ) || {};
 	const fallback = DEFAULT_KILL[ d.metod ] || [ 0.5, false ];
@@ -22,6 +25,8 @@ function treatmentKill( item, record ) {
 	return {
 		kill: own ?? listed ?? fallback[ 0 ],
 		phoretic: d.foretisk !== undefined && d.foretisk !== null && d.foretisk !== '' ? !! d.foretisk : fallback[ 1 ],
+		brood: !! d.i_yngel,
+		periods: Math.max( 1, parseInt( d.perioder, 10 ) || 1 ),
 		source: own !== null ? 'angiven i posten' : listed !== null ? 'från behandlingsmedlet' : 'förslag',
 	};
 }
@@ -74,14 +79,14 @@ export default function VarroaModel() {
 		}
 		const mine = rows.filter( inScope );
 		const measurements = mine.filter( ( h ) => h.type === 'varroa' && h.value !== null && h.rec_date ).map( ( h ) => ( { id: h.id, date: h.rec_date, method: h.method, value: Number( h.value ), colony: h.colony_id } ) );
-		// En behandling per period och medel (i en bigård räknas den som gäller flest samhällen).
+		// En behandling per datum och medel (i en bigård räknas samma behandling samma dag en gång).
 		const byKey = {};
 		mine.filter( ( h ) => h.type === 'behandling' && h.rec_date ).forEach( ( h ) => {
-			const key = periodOf( h.rec_date ) + ':' + ( h.treatment_id || '' );
+			const key = h.rec_date + ':' + ( h.treatment_id || '' );
 			byKey[ key ] = byKey[ key ] || { key, period: periodOf( h.rec_date ), date: h.rec_date, name: ( items[ h.treatment_id ] && items[ h.treatment_id ].name ) || 'Behandling', n: 0, ...treatmentKill( items[ h.treatment_id ], h ) };
 			byKey[ key ].n++;
 		} );
-		const recorded = Object.values( byKey ).sort( ( a, b ) => a.period - b.period );
+		const recorded = Object.values( byKey ).sort( ( a, b ) => ( a.date < b.date ? -1 : a.date > b.date ? 1 : 0 ) );
 		return { measurements, recorded };
 	}, [ rows, scope, treatList ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -89,7 +94,7 @@ export default function VarroaModel() {
 		return <Loading />;
 	}
 
-	const plannedT = planned.filter( ( p ) => p.date && p.date.startsWith( String( year ) ) ).map( ( p, i ) => ( { key: 'p' + i, period: periodOf( p.date ), date: p.date, name: p.name || 'Planerad behandling', kill: ( Number( p.kill ) || 0 ) / 100, phoretic: !! p.phoretic, planned: true } ) );
+	const plannedT = planned.filter( ( p ) => p.date && p.date.startsWith( String( year ) ) ).map( ( p, i ) => ( { key: 'p' + i, period: periodOf( p.date ), date: p.date, name: p.name || 'Planerad behandling', kill: ( Number( p.kill ) || 0 ) / 100, phoretic: !! p.phoretic, brood: !! p.brood, periods: p.periods || 1, planned: true } ) );
 	const treatments = data ? [ ...data.recorded.filter( ( t ) => ! off.includes( t.key ) ), ...plannedT ] : plannedT;
 	const opts = { type, immigration: Number( immigration ), vsh: ( Number( vsh ) || 0 ) / 100, start: Number( start ) || 0, treatments };
 	const result = runModel( opts );
@@ -185,14 +190,14 @@ export default function VarroaModel() {
 				{ data && data.recorded.length === 0 && <p className="nbs-muted">Inga registrerade behandlingar { year }.</p> }
 				{ ( ( data && data.recorded.length > 0 ) || plannedT.length > 0 ) && (
 					<table className="nbs-table">
-						<thead><tr><th>Med</th><th>Datum</th><th>Behandling</th><th>Avdödning</th><th>I perioden</th></tr></thead>
+						<thead><tr><th>Med</th><th>Datum</th><th>Behandling</th><th>Avdödning</th><th>Hela perioden</th></tr></thead>
 						<tbody>
 							{ data && data.recorded.map( ( t ) => (
 								<tr key={ t.key }>
 									<td><input type="checkbox" checked={ ! off.includes( t.key ) } onChange={ ( e ) => setOff( ( o ) => ( e.target.checked ? o.filter( ( k ) => k !== t.key ) : [ ...o, t.key ] ) ) } aria-label={ 'Räkna med ' + t.name } /></td>
 									<td>{ fmtDate( t.date ) }</td>
 									<td>{ t.name }{ kind === 'a' && t.n > 1 ? ` (${ t.n } samhällen)` : '' }</td>
-									<td>{ pct( t.kill ) } <small className="nbs-muted">{ t.source }{ t.phoretic ? ', bara på bina' : '' }</small></td>
+									<td>{ pct( t.kill ) } <small className="nbs-muted">{ [ t.source, effect( t ) ].filter( Boolean ).join( ', ' ) }</small></td>
 									<td>{ pct( result[ t.period ].kill ) }</td>
 								</tr>
 							) ) }
@@ -201,7 +206,7 @@ export default function VarroaModel() {
 									<td>Plan</td>
 									<td>{ fmtDate( t.date ) }</td>
 									<td>{ t.name }</td>
-									<td>{ pct( t.kill ) }{ t.phoretic ? <small className="nbs-muted"> bara på bina</small> : null }</td>
+									<td>{ pct( t.kill ) }{ effect( t ) ? <small className="nbs-muted"> { effect( t ) }</small> : null }</td>
 									<td>{ pct( result[ t.period ].kill ) }</td>
 								</tr>
 							) ) }
@@ -216,15 +221,18 @@ export default function VarroaModel() {
 					<h2 className="nbs-h2">Håller det?</h2>
 					{ checks.length > 0 && (
 						<table className="nbs-table">
-							<thead><tr><th>Behandling</th><th>Väntad avdödning</th><th>Mätning efter</th><th>Modellen väntar</th><th>Uppskattad avdödning</th></tr></thead>
+							<thead><tr><th>Behandlingar</th><th>Väntad avdödning</th><th>Mätning efter</th><th>Modellen väntar</th><th>Bedömning</th></tr></thead>
 							<tbody>
 								{ checks.map( ( c ) => (
-									<tr key={ c.key }>
-										<td>{ c.name } { fmtDate( c.date ) }</td>
+									<tr key={ c.items.map( ( t ) => t.key ).join() }>
+										<td>
+											{ fmtDate( c.items[ 0 ].date ) }{ c.items.length > 1 ? ` – ${ fmtDate( c.items[ c.items.length - 1 ].date ) }` : '' }
+											<br /><small className="nbs-muted">{ summarize( c.items ) }</small>
+										</td>
 										<td>{ pct( c.expected ) }</td>
 										<td>{ c.after ? `${ nf( c.after.value ) } ${ MEASURES[ c.after.method ].unit } (${ fmtDate( c.after.date ) })` : <span className="nbs-muted">Ingen mätning efter</span> }</td>
 										<td>{ c.after ? nf( c.model ) : '–' }</td>
-										<td>{ c.actual === null || c.actual === undefined ? '–' : <Verdict expected={ c.expected } actual={ c.actual } /> }</td>
+										<td>{ c.verdict ? <Verdict c={ c } /> : '–' }</td>
 									</tr>
 								) ) }
 							</tbody>
@@ -257,9 +265,22 @@ export default function VarroaModel() {
 	);
 }
 
-function Verdict( { expected, actual } ) {
-	const short = actual < expected - 0.15;
-	return <span className={ 'nbs-badge' + ( short ? ' is-low' : ' is-ok' ) }>{ pct( actual ) }{ short ? ' – lägre än väntat' : ' – höll' }</span>;
+/** "Oxalsyra, sublimering × 4, Samuel" */
+function summarize( items ) {
+	const count = {};
+	items.forEach( ( t ) => ( count[ t.name ] = ( count[ t.name ] || 0 ) + 1 ) );
+	return Object.entries( count ).map( ( [ n, k ] ) => ( k > 1 ? `${ n } × ${ k }` : n ) ).join( ', ' );
+}
+
+function Verdict( { c } ) {
+	const label = { held: 'Höll', unsure: 'Osäkert', short: 'Lägre än väntat' }[ c.verdict ];
+	const cls = { held: ' is-ok', unsure: '', short: ' is-low' }[ c.verdict ];
+	return (
+		<>
+			<span className={ 'nbs-badge' + cls }>{ label }</span>
+			<br /><small className="nbs-muted">ca { pct( c.actual ) } avdödning, mätningen { nf( c.ratio ) } × modellen</small>
+		</>
+	);
 }
 
 /** Planerade behandlingar som bara finns i modellen, för att prova olika upplägg. */
@@ -268,6 +289,7 @@ function Planned( { year, planned, setPlanned, treatList } ) {
 	const [ item, setItem ] = useState( '' );
 	const [ kill, setKill ] = useState( 90 );
 	const [ phoretic, setPhoretic ] = useState( false );
+	const [ extra, setExtra ] = useState( { brood: false, periods: 1 } );
 	const pick = ( id ) => {
 		setItem( id );
 		const t = treatList.find( ( x ) => x.id === id );
@@ -275,11 +297,12 @@ function Planned( { year, planned, setPlanned, treatList } ) {
 			const k = treatmentKill( t, null );
 			setKill( Math.round( k.kill * 100 ) );
 			setPhoretic( k.phoretic );
+			setExtra( { brood: k.brood, periods: k.periods } );
 		}
 	};
 	const add = () => {
 		const t = treatList.find( ( x ) => x.id === item );
-		setPlanned( ( p ) => [ ...p, { date, name: t ? t.name : 'Behandling', kill, phoretic } ] );
+		setPlanned( ( p ) => [ ...p, { date, name: t ? t.name : 'Behandling', kill, phoretic, ...extra } ] );
 	};
 	const mine = planned.map( ( p, i ) => ( { ...p, i } ) ).filter( ( p ) => p.date && p.date.startsWith( String( year ) ) );
 	return (

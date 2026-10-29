@@ -255,6 +255,9 @@ class NBS_Rest {
 		self::route('/templates/(?P<id>[0-9a-f-]{36})', 'DELETE', function (WP_REST_Request $r) use ($org) {
 			return self::out(NBS_Visits::delete_template($org(), $r->get_url_params()['id']));
 		}, 'can_manage');
+		self::route('/templates/link-examples', 'POST', function () use ($org) {
+			return ['linked' => NBS_Visits::link_examples($org())];
+		}, 'can_manage');
 		self::route('/templates/examples', 'POST', function () use ($org) {
 			return ['added' => NBS_Visits::import_examples($org())];
 		}, 'can_manage');

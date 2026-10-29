@@ -66,6 +66,15 @@ function VisitList( { tab, templates, reloadTemplates } ) {
 			toast( e.message, 'error' );
 		}
 	};
+	const linkExamples = async () => {
+		try {
+			const r = await api( 'templates/link-examples', { method: 'POST' } );
+			toast( r.linked ? `${ r.linked } skötselkort kopplades till behandlingar och varroamätningar.` : 'Standardkorten var redan kopplade.' );
+			reloadTemplates();
+		} catch ( e ) {
+			toast( e.message, 'error' );
+		}
+	};
 	const markDone = async ( v ) => {
 		try {
 			await api( 'visits/' + v.id, { method: 'PUT', body: { followup_done: true } } );
@@ -107,7 +116,7 @@ function VisitList( { tab, templates, reloadTemplates } ) {
 
 	let body = null;
 	if ( tab === 'kort' ) {
-		body = <TemplateList templates={ templates } onImport={ importExamples } />;
+		body = <TemplateList templates={ templates } onImport={ importExamples } onLink={ linkExamples } />;
 	} else if ( ! visits ) {
 		body = error ? <ErrorBox error={ error } /> : <Loading />;
 	} else if ( tab === 'kommande' ) {
@@ -252,7 +261,7 @@ function PlanModal( { templates, onClose, onDone } ) {
 
 /* ------------------------------------------------------------------ Skötselkort */
 
-function TemplateList( { templates, onImport } ) {
+function TemplateList( { templates, onImport, onLink } ) {
 	const reg = useRegister();
 	const me = useMe();
 	const [ showArchived, setShowArchived ] = useState( false );
@@ -263,6 +272,9 @@ function TemplateList( { templates, onImport } ) {
 				<div className="nbs-alert nbs-alert-info">
 					Korten från driftplanen (dödskontroll, vårgenomgång, drönarram, skattning, slutskattning och Samuel, oxalsyra och invintring, invintringskontroll) kan läggas in som exempel och ändras fritt. <button type="button" className="nbs-link-btn" onClick={ onImport }>Lägg in exempelkorten</button>
 				</div>
+			) }
+			{ me.can.manage && templates.length > 0 && (
+				<p className="nbs-muted">Standardkorten (oxalsyra, drönarram, Samuel …) kan kopplas till behandlingarna och varroamodellen. Fält du redan kopplat lämnas orörda. <button type="button" className="nbs-link-btn" onClick={ onLink }>Koppla standardkorten</button></p>
 			) }
 			{ list.length === 0 ? (
 				<Empty title="Inga skötselkort ännu">
@@ -491,7 +503,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 				<h2 className="nbs-h2">5. Kupkontroll</h2>
 				<p className="nbs-muted">Uppgifterna som fylls i för varje samhälle. Typen <em>Skala</em> ger stora knappar (t.ex. styrka 1–5) och <em>Ja/nej</em> två knappar. Ett tal- eller skalfält kan uppdatera samhällets styrka.</p>
 				<div className="nbs-form">
-					<FieldDefs fields={ fields } setFields={ setFields } refLists={ refLists } allowMaps />
+					<FieldDefs fields={ fields } setFields={ setFields } refLists={ refLists } allowMaps treatments={ treatList || [] } />
 				</div>
 			</section>
 

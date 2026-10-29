@@ -16,8 +16,11 @@ export const cleanFields = ( fields ) =>
 	} ) );
 
 /** Skötselkort: vad ett fält blir när besöket avslutas (styrka, bihälsopost för varroamodellen). */
-export function mapOptions( f ) {
+export function mapOptions( f, treatments = [] ) {
 	const none = [ '', 'Bara i besöket' ];
+	if ( f.type === 'bool' ) {
+		return [ none, ...treatments.filter( ( t ) => t.active !== false ).map( ( t ) => [ 'treat:' + t.id, 'Ikryssat: registrerar behandlingen ' + t.name ] ) ];
+	}
 	if ( f.type === 'scale' ) {
 		return [ none, [ 'strength', 'Uppdaterar samhällets styrka' ] ];
 	}
@@ -38,7 +41,7 @@ export function mapOptions( f ) {
 	return [ none ];
 }
 
-export default function FieldDefs( { fields, setFields, refLists, allowMaps } ) {
+export default function FieldDefs( { fields, setFields, refLists, allowMaps, treatments } ) {
 	const upd = ( i, patch ) => setFields( ( fs ) => fs.map( ( f, j ) => ( j === i ? { ...f, ...patch } : f ) ) );
 	const move = ( i, d ) =>
 		setFields( ( fs ) => {
@@ -88,11 +91,11 @@ export default function FieldDefs( { fields, setFields, refLists, allowMaps } ) 
 							<div className="nbs-field"><label>Till</label><input type="number" min="1" max="10" value={ f.max ?? 5 } onChange={ ( e ) => upd( i, { max: e.target.value } ) } /></div>
 						</div>
 					) }
-					{ allowMaps && mapOptions( f ).length > 1 && (
+					{ allowMaps && mapOptions( f, treatments ).length > 1 && (
 						<div className="nbs-field">
 							<label htmlFor={ `nbs-fd-maps-${ i }` }>När besöket avslutas</label>
 							<select id={ `nbs-fd-maps-${ i }` } value={ f.maps || '' } onChange={ ( e ) => upd( i, { maps: e.target.value } ) }>
-								{ mapOptions( f ).map( ( [ v, l ] ) => <option key={ v } value={ v }>{ l }</option> ) }
+								{ mapOptions( f, treatments ).map( ( [ v, l ] ) => <option key={ v } value={ v }>{ l }</option> ) }
 							</select>
 						</div>
 					) }

@@ -49,6 +49,8 @@ class NBS_Starter {
 				['key' => 'karens', 'label' => 'Karens/restriktion', 'type' => 'text', 'help' => 'T.ex. inte med skattlådor på'],
 				['key' => 'avdodning', 'label' => 'Avdödning', 'type' => 'number', 'unit' => '%', 'min' => 0, 'max' => 100, 'help' => 'Ungefärlig andel av kvalstren som dör, för varroamodellen. Randy Oliver: syntetiska medel ca 95 %, stark myrsyra ca 90 %, svag myrsyra ca 50 %, oxalsyra i yngelfritt samhälle 80–95 %.'],
 				['key' => 'foretisk', 'label' => 'Verkar bara på kvalster på bina', 'type' => 'bool', 'help' => 'T.ex. oxalsyra: i ett samhälle med yngel når den bara kvalstren utanför cellerna, och modellen räknar ned avdödningen efter hur mycket yngel det finns.'],
+				['key' => 'i_yngel', 'label' => 'Tar bara kvalster i yngel', 'type' => 'bool', 'help' => 'T.ex. drönarramsuttag eller när yngelrummet tas bort (Samuel): modellen räknar med andelen kvalster i yngel.'],
+				['key' => 'perioder', 'label' => 'Verkar i antal perioder', 'type' => 'number', 'min' => 1, 'max' => 6, 'help' => 'Långtidsbehandling: avdödningen gäller i så många perioder om ca 15 dagar i rad (t.ex. oxalsyra/glycerin-remsor 85 % i 3 perioder).'],
 				['key' => 'material', 'label' => 'Lagerartikel', 'type' => 'ref', 'ref' => 'material'],
 			]],
 			'bigardstyper'  => ['Bigårdstyper', 'Vad en bigård används till.', []],
@@ -118,10 +120,29 @@ class NBS_Starter {
 		];
 	}
 
+	/**
+	 * Behandlingsmedel med ungefärlig avdödning efter Randy Olivers tabell i varroamodellen
+	 * (scientificbeekeeping.com). Läggs in i nya biodlingar och kompletterar befintliga en gång.
+	 */
+	const STANDARD_TREATMENTS = [
+		['name' => 'Oxalsyra, sublimering', 'data' => ['amne' => 'Oxalsyra', 'metod' => 'Sublimering', 'karens' => 'Inte med skattlådor på', 'material' => '@material:Oxalsyra (sublimering)', 'avdodning' => 90, 'foretisk' => true]],
+		['name' => 'Oxalsyra, droppning', 'data' => ['amne' => 'Oxalsyra', 'metod' => 'Dropp', 'karens' => 'Inte med skattlådor på', 'avdodning' => 90, 'foretisk' => true]],
+		['name' => 'Oxalsyra/glycerin, remsor (långtid)', 'data' => ['amne' => 'Oxalsyra och glycerin', 'metod' => 'Remsor', 'karens' => 'Inte med skattlådor på', 'avdodning' => 85, 'perioder' => 3]],
+		['name' => 'Myrsyra, långtidsbehandling', 'data' => ['amne' => 'Myrsyra', 'metod' => 'Avdunstning, lång', 'karens' => 'Inte med skattlådor på', 'material' => '@material:Myrsyra', 'avdodning' => 90]],
+		['name' => 'Myrsyra, snabbehandling (drönarramar)', 'data' => ['amne' => 'Myrsyra', 'metod' => 'Avdunstning, kort', 'material' => '@material:Myrsyra', 'avdodning' => 50]],
+		['name' => 'Tymol (t.ex. Apiguard, två omgångar)', 'data' => ['amne' => 'Tymol', 'metod' => 'Avdunstning, lång', 'karens' => 'Inte med skattlådor på', 'avdodning' => 90]],
+		['name' => 'Amitraz (t.ex. Apivar)', 'data' => ['amne' => 'Amitraz', 'metod' => 'Remsor', 'karens' => 'Inte med skattlådor på', 'avdodning' => 95]],
+		['name' => 'Sockerpudring', 'data' => ['amne' => 'Florsocker', 'metod' => 'Annat', 'avdodning' => 50, 'foretisk' => true]],
+		['name' => 'Drönarramsuttag', 'data' => ['amne' => 'Biotekniskt', 'metod' => 'Annat', 'avdodning' => 15, 'dos' => 'En utskuren drönarram (15–20 % per uttag tidigt på säsongen)']],
+		['name' => 'Samuel (yngelrummet tas bort)', 'data' => ['amne' => 'Biotekniskt', 'metod' => 'Annat', 'avdodning' => 100, 'i_yngel' => true, 'dos' => 'Kvalstren i yngelrummet följer med ut; kvalstren på bina finns kvar (sublimera samma kväll).']],
+		['name' => 'Avläggare eller drottningbyte (yngeluppehåll)', 'data' => ['amne' => 'Biotekniskt', 'metod' => 'Annat', 'avdodning' => 50]],
+		['name' => 'Förstasvärm', 'data' => ['amne' => 'Biotekniskt', 'metod' => 'Annat', 'avdodning' => 35]],
+	];
+
 	/** Fält som har tillkommit i grundlistorna efter att de skapats: [lista => [fältnycklar]]. */
 	const ADDED_FIELDS = [
 		'material' => ['behov_per_samhalle', 'bibliotek'],
-		'behandling' => ['avdodning', 'foretisk'],
+		'behandling' => ['avdodning', 'foretisk', 'i_yngel', 'perioder'],
 	];
 
 	/**
@@ -169,6 +190,47 @@ class NBS_Starter {
 			$settings['added_fields'] = $done;
 			NBS_Auth::save_org_settings($org_id, $settings);
 		}
+		self::ensure_treatments($org_id);
+	}
+
+	/**
+	 * En gång per biodling: standardbehandlingarna som saknas läggs till, och befintliga med samma
+	 * namn får avdödning m.m. där fälten är tomma. Därefter kopplas standardkorten.
+	 */
+	public static function ensure_treatments($org_id) {
+		$settings = NBS_Auth::org_settings($org_id);
+		if (!empty($settings['std_treatments_1'])) {
+			return;
+		}
+		$list = NBS_Lists::get_by_key($org_id, 'behandling');
+		if (!$list) {
+			return;
+		}
+		$have = [];
+		foreach (NBS_Lists::items($org_id, $list['id']) as $it) {
+			$have[mb_strtolower($it['name'])] = $it;
+		}
+		foreach (self::STANDARD_TREATMENTS as $t) {
+			$data = array_filter(self::resolve_refs($org_id, $t['data']), function ($v) {
+				return $v !== null;
+			});
+			$it   = $have[mb_strtolower($t['name'])] ?? null;
+			if (!$it) {
+				NBS_Lists::save_item($org_id, $list['id'], ['name' => $t['name'], 'data' => $data]);
+				continue;
+			}
+			$cur  = (array) $it['data'];
+			$fill = array_filter($data, function ($v, $k) use ($cur) {
+				return !isset($cur[$k]) || $cur[$k] === '' || $cur[$k] === null;
+			}, ARRAY_FILTER_USE_BOTH);
+			if ($fill) {
+				NBS_Lists::save_item($org_id, $list['id'], ['data' => $cur + $fill], $it['id']);
+			}
+		}
+		$settings                     = NBS_Auth::org_settings($org_id);
+		$settings['std_treatments_1'] = 1;
+		NBS_Auth::save_org_settings($org_id, $settings);
+		NBS_Visits::link_examples($org_id);
 	}
 
 	/**
@@ -213,11 +275,7 @@ class NBS_Starter {
 				['name' => 'Foderdeg', 'data' => ['form' => 'Deg', 'torrsubstans' => 88, 'material' => '@material:Foderdeg']],
 				['name' => 'Socker', 'data' => ['form' => 'Torrt socker', 'torrsubstans' => 100, 'material' => '@material:Socker 15 kg']],
 			],
-			'behandling'   => [
-				['name' => 'Oxalsyra, sublimering', 'data' => ['amne' => 'Oxalsyra', 'metod' => 'Sublimering', 'karens' => 'Inte med skattlådor på', 'material' => '@material:Oxalsyra (sublimering)', 'avdodning' => 90, 'foretisk' => true]],
-				['name' => 'Myrsyra, långtidsbehandling', 'data' => ['amne' => 'Myrsyra', 'metod' => 'Avdunstning, lång', 'karens' => 'Inte med skattlådor på', 'material' => '@material:Myrsyra', 'avdodning' => 90]],
-				['name' => 'Myrsyra, snabbehandling (drönarramar)', 'data' => ['amne' => 'Myrsyra', 'metod' => 'Avdunstning, kort', 'material' => '@material:Myrsyra', 'avdodning' => 50]],
-			],
+			'behandling'   => self::STANDARD_TREATMENTS,
 			'bigardstyper' => [
 				['name' => 'Produktion', 'color' => '#D99A2B'],
 				['name' => 'Avläggare', 'color' => '#4A8A5A'],
@@ -274,9 +332,19 @@ class NBS_Starter {
 			if (!$list) {
 				continue;
 			}
-			$existing = wp_list_pluck(NBS_Lists::items($org_id, $list['id']), 'name');
+			$items    = NBS_Lists::items($org_id, $list['id']);
+			$existing = wp_list_pluck($items, 'name');
 			foreach ($all[$key] as $item) {
 				if (in_array($item['name'], $existing, true)) {
+					// Fyll i tomma värden (t.ex. lagerartikeln på en behandling som lades in före materialet).
+					$it   = $items[array_search($item['name'], $existing, true)];
+					$cur  = (array) $it['data'];
+					$fill = array_filter(self::resolve_refs($org_id, $item['data'] ?? []), function ($v, $k) use ($cur) {
+						return $v !== null && (!isset($cur[$k]) || $cur[$k] === '' || $cur[$k] === null);
+					}, ARRAY_FILTER_USE_BOTH);
+					if ($fill) {
+						NBS_Lists::save_item($org_id, $list['id'], ['data' => $cur + $fill], $it['id']);
+					}
 					continue;
 				}
 				$data = self::resolve_refs($org_id, $item['data'] ?? []);

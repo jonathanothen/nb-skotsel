@@ -493,9 +493,12 @@ class NBS_Visits {
 		$varroa = [];
 		$treat  = null;
 		$kill   = null;
+		$checks = []; // ja/nej-fält som registrerar en behandling när de kryssas i
 		foreach ($fields as $f) {
 			$maps = (string) ($f['maps'] ?? '');
-			if (strpos($maps, 'varroa:') === 0) {
+			if (strpos($maps, 'treat:') === 0) {
+				$checks[$f['key']] = substr($maps, 6);
+			} elseif (strpos($maps, 'varroa:') === 0) {
 				$varroa[$f['key']] = substr($maps, 7);
 			} elseif ($maps === 'treatment') {
 				$treat = $f['key'];
@@ -537,7 +540,13 @@ class NBS_Visits {
 			$done  = [];
 			$tid   = $treat ? (string) ($data[$treat] ?? '') : '';
 			$card  = is_array($card_treatment) && isset($items[$card_treatment['id'] ?? '']) ? $card_treatment['id'] : '';
-			foreach (array_merge(isset($items[$tid]) ? [$tid] : [], $card ? [$card] : [], $from_material) as $t) {
+			$ticks = [];
+			foreach ($checks as $key => $t) {
+				if (!empty($data[$key]) && isset($items[$t])) {
+					$ticks[] = $t;
+				}
+			}
+			foreach (array_merge(isset($items[$tid]) ? [$tid] : [], $card ? [$card] : [], $ticks, $from_material) as $t) {
 				if (isset($done[$t])) {
 					continue;
 				}
@@ -597,6 +606,83 @@ class NBS_Visits {
 
 	// ------------------------------------------------------------ Exempelkort
 
+	/** "@Behandlingsmedel" i kortets behandling och fältens kopplingar byts mot postens id. */
+	private static function resolve_card_links($d, $find) {
+		if (!empty($d['treatment']) && is_string($d['treatment'])) {
+			$id             = $find('behandling', ltrim($d['treatment'], '@'));
+			$d['treatment'] = $id ? ['id' => $id, 'kill' => null] : null;
+		}
+		foreach ($d['fields'] as &$f) {
+			if (isset($f['maps']) && strpos($f['maps'], 'treat:@') === 0) {
+				$id        = $find('behandling', substr($f['maps'], 7));
+				$f['maps'] = $id ? 'treat:' . $id : '';
+			}
+		}
+		unset($f);
+		return $d;
+	}
+
+	/**
+	 * Kopplar befintliga standardkort (samma namn som i data/skotselkort.json) till behandlingar och
+	 * varroamätningar: fält utan koppling får standardkortets, saknade mätfält läggs till och kortet
+	 * får sin behandling om det inte har någon. Egna ändringar i korten lämnas orörda.
+	 */
+	public static function link_examples($org_id) {
+		$file = NBS_DIR . 'data/skotselkort.json';
+		$defs = file_exists($file) ? json_decode((string) file_get_contents($file), true) : [];
+		$find = function ($key, $name) use ($org_id) {
+			$list = NBS_Lists::get_by_key($org_id, $key);
+			foreach ($list ? NBS_Lists::items($org_id, $list['id']) : [] as $it) {
+				if (mb_strtolower($it['name']) === mb_strtolower($name)) {
+					return $it['id'];
+				}
+			}
+			return null;
+		};
+		$linked = 0;
+		foreach (self::templates($org_id) as $t) {
+			$def = null;
+			foreach ((array) $defs as $d) {
+				if ($d['name'] === $t['name']) {
+					$def = self::resolve_card_links($d, $find);
+				}
+			}
+			if (!$def) {
+				continue;
+			}
+			$fields  = $t['fields'];
+			$changed = false;
+			foreach ($def['fields'] as $df) {
+				if (empty($df['maps'])) {
+					continue;
+				}
+				$hit = null;
+				foreach ($fields as $i => $f) {
+					if (mb_strtolower($f['label']) === mb_strtolower($df['label'])) {
+						$hit = $i;
+					}
+				}
+				if ($hit === null && strpos($df['maps'], 'varroa:') === 0) {
+					$fields[] = $df;
+					$changed  = true;
+				} elseif ($hit !== null && empty($fields[$hit]['maps']) && $fields[$hit]['type'] === $df['type']) {
+					$fields[$hit]['maps'] = $df['maps'];
+					$changed              = true;
+				}
+			}
+			$treatment = $t['treatment'];
+			if (empty($treatment) && !empty($def['treatment'])) {
+				$treatment = $def['treatment'];
+				$changed   = true;
+			}
+			if ($changed) {
+				$r = self::save_template($org_id, ['fields' => $fields, 'treatment' => $treatment] + $t, $t['id']);
+				$linked += is_wp_error($r) ? 0 : 1;
+			}
+		}
+		return $linked;
+	}
+
 	/** Lägger in skötselkorten från driftplan.xlsx (data/skotselkort.json). Befintliga namn hoppas över. */
 	public static function import_examples($org_id) {
 		$file = NBS_DIR . 'data/skotselkort.json';
@@ -621,6 +707,7 @@ class NBS_Visits {
 				continue;
 			}
 			$d['category_id'] = !empty($d['category']) ? $find('kategorier', $d['category']) : null;
+			$d                = self::resolve_card_links($d, $find);
 			foreach ($d['material'] as &$m) {
 				$m['item_id'] = !empty($m['item']) ? $find('material', $m['item']) : null;
 			}

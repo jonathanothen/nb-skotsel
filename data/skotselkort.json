@@ -1,783 +1,807 @@
 [
-	{
-		"name": "Dödskontroll",
-		"category": "Biskötsel",
-		"purpose": "Kolla om samhället lever, om yngelsättningen är igång, stödfodra samt göra en stykebedömning.",
-		"steps": [
-			{
-				"title": "Dödskontroll",
-				"text": "Öppna locket och kolla om bina lever. Är det mycket döda bin så kan man lyfta på några ramar för att se om det finns levande bin längre ner. Notera kupnummer och mata. Dessa sätts på mindre kupor senare eller slås ihop."
-			},
-			{
-				"title": "Bedömning och yngelsättning",
-				"text": "Räkna antalet bigångar, skriv upp kupans numer under anteckningar och antalet bigångar. Lyft på någon ram för at kolla om yngelsätningen är igång."
-			},
-			{
-				"title": "Matning",
-				"text": "För starka och normalstarka samhällen läggs två stycken 1 kg degar på, förpackningen skärs upp med en kniv som ett kryss och öppningen läggs ner mot bina. Lägg på täckplasten över foderdegen och vänd på foderlådan på så degen får plats."
-			},
-			{
-				"title": "Ta hem döda samhällen",
-				"text": "Stäng flustret på bikupan och lasta upp döda samhällen på släpvagnen samt lastsäkra. Döda samhällen ska tillbaka till Österbo."
-			}
-		],
-		"checklist": [
-			"Öppna kupan, kolla om bina lever",
-			"Räkna antal bigångar och skriv upp i skötselkort",
-			"Lyft ramar och kolla yngelsättning, notera på skötselkort",
-			"Ta fram foderdeg, öppna och lägg på",
-			"Lägg på skyddsplast och vänd på foderlådan",
-			"Stäng kupan",
-			"Sätt tilbaka spännband",
-			"Kontrollera att allt sitter bra",
-			"Stäng och lasta eventuella döda samhällen",
-			"Lastsäkra och kör till nästa bigård"
-		],
-		"material": [
-			{
-				"item": "Foderdeg",
-				"label": "Foderdeg",
-				"qty": 2,
-				"per": "colony",
-				"kind": "consume"
-			},
-			{
-				"label": "Skyddskläder (kupkniv och handskar finns i lådor i bigården)",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Släpkärra för att ta hem döda samhällen",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Lastsäkringar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			}
-		],
-		"fields": [
-			{
-				"label": "Lever",
-				"type": "bool"
-			},
-			{
-				"label": "Bigångar",
-				"type": "number",
-				"min": 0,
-				"max": 10,
-				"help": "Antal bigångar med bin (0–10)."
-			},
-			{
-				"label": "Yngel",
-				"type": "bool"
-			}
-		]
-	},
-	{
-		"name": "Vårgenomgång",
-		"category": "Biskötsel",
-		"purpose": "Bedöm varje samhälle efter vintern, ordna om de svaga, ge det foder som behövs och förbered de starka för sälg och maskros: skattlåda med utbyggda ramar på och drönarram i, allt i samma besök.",
-		"steps": [
-			{
-				"title": "Yngelkontroll och bedömning",
-				"text": "Lyft ramar i yngelrummet. Bedöm drottning, yngelmönster och styrka (1–5) och notera tecken på sjukdom. Misstänkt sjukdom hanteras enligt åtgärdsplanen i bihälsoplanen."
-			},
-			{
-				"title": "Ordna om",
-				"text": "Slå ihop svaga men friska samhällen. Samhällen utan drottning eller med sjukdomsmisstanke tas ur produktionen. Jämna ut yngel från starka till svaga vid behov."
-			},
-			{
-				"title": "Foder",
-				"text": "Kontrollera foderförrådet. Ge foderdeg eller ramfodrare där det är glest eller svält hotar, och drivfodra i bigårdar med bra sälgdrag."
-			},
-			{
-				"title": "Förbered för draget",
-				"text": "Starka samhällen får skattlåda med utbyggda ramar på. Sätt in en tomram utan tråd som drönarram i yngelrummet och notera datum på kortet; bina bygger vaxet själva."
-			}
-		],
-		"checklist": [
-			"Öppna kupan, lyft yngelramar",
-			"Bedöm drottning, yngel, styrka 1–5",
-			"Notera sjukdomstecken på kortet",
-			"Slå ihop eller märk svaga samhällen",
-			"Kontrollera foderförrådet",
-			"Ge foderdeg/ramfodrare vid behov",
-			"Skattlåda med utbyggda ramar på",
-			"Sätt in tomram, notera datum",
-			"Stäng kupan, sätt tillbaka spännband",
-			"Lasta utslagna, lastsäkra"
-		],
-		"material": [
-			{
-				"item": "Foderdeg",
-				"label": "Foderdeg vid behov",
-				"qty": null,
-				"per": "colony",
-				"kind": "consume"
-			},
-			{
-				"item": "Låda 9 ramar Farrar (yngelrum/skattlåda)",
-				"label": "Skattlåda med utbyggda ramar",
-				"qty": 1,
-				"per": "colony",
-				"kind": "move"
-			},
-			{
-				"item": "Drönarram (tomram utan tråd)",
-				"label": "Drönarram",
-				"qty": 1,
-				"per": "colony",
-				"kind": "move"
-			},
-			{
-				"label": "Foderdeg och ramfodrare",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Skötselkort och penna",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Kupkniv och handskar (finns i bigården)",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Släpkärra för utslagna samhällen",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Lastsäkringar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Märkpenna för kupnummer",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			}
-		],
-		"fields": [
-			{
-				"label": "Styrka",
-				"type": "scale",
-				"min": 1,
-				"max": 5,
-				"maps": "strength"
-			},
-			{
-				"label": "Yngel",
-				"type": "bool"
-			},
-			{
-				"label": "Drottning sedd",
-				"type": "bool"
-			},
-			{
-				"label": "Sjukdomstecken",
-				"type": "bool"
-			},
-			{
-				"label": "Åtgärd",
-				"type": "select",
-				"options": [
-					"Ingen",
-					"Sammanslagen",
-					"Utslagen",
-					"Fodrad",
-					"Skattlåda på"
-				]
-			}
-		]
-	},
-	{
-		"name": "Drönarram och plats",
-		"category": "Bihälsa",
-		"purpose": "Byt drönarram: ta ut den gamla och sätt in en ny tomram utan tråd, och skapa plats i yngelrummet så att samhällena inte vill svärma. De uttagna ramarna snabbehandlas med myrsyra och används för drönardominans vid parningsplatsen.",
-		"steps": [
-			{
-				"title": "Byte av drönarram",
-				"text": "Ta ut drönarramen och lägg den i den täta lådan. Sätt in en ny tomram utan tråd i yngelrummet; bina bygger vaxet själva."
-			},
-			{
-				"title": "Plats i yngelrummet",
-				"text": "Ställ in en låda med ramar med mellanväggar och plocka in nya ramar. Stoppa in överblivna foderramar och pollenramar där det finns plats."
-			},
-			{
-				"title": "Stickprovskontroll",
-				"text": "Gör en stickprovskontroll av svärmbeteende. Samhällena har redan skattlådor och ska ha gott om plats för honung."
-			},
-			{
-				"title": "Behandla och transportera",
-				"text": "Snabbehandla de uttagna drönarramarna med myrsyra i den täta lådan och kör dem till parningsplatsen för drönardominans."
-			}
-		],
-		"checklist": [
-			"Ta ut drönarramen",
-			"Lägg ramen i tät låda",
-			"Sätt in ny tomram utan tråd",
-			"Lådor med mellanväggar: nya ramar",
-			"Foder- och pollenramar in",
-			"Stickprov: svärmbeteende",
-			"Har skattlådorna plats?",
-			"Stäng kupan, spännband",
-			"Myrsyra i lådan",
-			"Lastsäkra, kör till parningsplatsen"
-		],
-		"material": [
-			{
-				"item": "Drönarram (tomram utan tråd)",
-				"label": "Ny tomram utan tråd",
-				"qty": 1,
-				"per": "colony",
-				"kind": "move"
-			},
-			{
-				"item": "Mellanvägg Farrar",
-				"label": "Mellanväggar",
-				"qty": null,
-				"per": "colony",
-				"kind": "move"
-			},
-			{
-				"item": "Myrsyra",
-				"label": "Myrsyra för snabbehandling",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Överblivna foder- och pollenramar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Tät låda för uttagna drönarramar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Kupkniv och handskar (finns i bigården)",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Lastsäkringar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Skötselkort och penna",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			}
-		],
-		"fields": [
-			{
-				"label": "Drönarram bytt",
-				"type": "bool"
-			},
-			{
-				"label": "Svärmceller",
-				"type": "bool"
-			},
-			{
-				"label": "Låda med mellanväggar",
-				"type": "bool"
-			}
-		]
-	},
-	{
-		"name": "Skattning",
-		"category": "Honung",
-		"purpose": "Ta försommarhonungen med så få lyft som möjligt: skatta, byt drönarram, kontrollera samhället medan det är öppet och sätt på nya skattlådor med utbyggda ramar.",
-		"steps": [
-			{
-				"title": "Skatta",
-				"text": "Kontrollera att ramarna är täckta; mät vattenhalten med refraktometer vid tvekan. Sätt bitömmarbotten och låt bina vandra ned. Märk lådorna per bigård så att honungen hålls åtskild."
-			},
-			{
-				"title": "Byte av drönarram",
-				"text": "Ta ut drönarramen och lägg den i den täta lådan. Ramen snabbehandlas med myrsyra och körs till parningsplatsen. Sätt in en ny tomram utan tråd."
-			},
-			{
-				"title": "Kontroll medan kupan är öppen",
-				"text": "Titta på drottning, yngelbild, foder och sjukdomstecken. Mät kvalstertryck vid tecken på högt tryck eller svag utveckling. Notera avvikelser på kortet."
-			},
-			{
-				"title": "Nya skattlådor",
-				"text": "Sätt på tomma skattlådor med utbyggda ramar på samhällen som fortfarande har drag. Stapla de skattade lådorna på pall, täck bitätt och kör direkt till intagsrummet."
-			}
-		],
-		"checklist": [
-			"Kontrollera att ramarna är täckta",
-			"Mät vattenhalt vid tvekan",
-			"Sätt bitömmarbotten, ta ned bina",
-			"Märk lådorna med bigård",
-			"Drönarram ut i tät låda, ny tomram in",
-			"Kolla drottning, yngel, foder",
-			"Mät kvalstertryck vid misstanke",
-			"Sätt på skattlådor med utbyggda ramar",
-			"Stapla på pall, täck bitätt",
-			"Lastsäkra, kör till intagsrummet"
-		],
-		"material": [
-			{
-				"item": "Låda 9 ramar Farrar (yngelrum/skattlåda)",
-				"label": "Tomma skattlådor med utbyggda ramar",
-				"qty": 1,
-				"per": "colony",
-				"kind": "move"
-			},
-			{
-				"item": "Drönarram (tomram utan tråd)",
-				"label": "Ny drönarram",
-				"qty": 1,
-				"per": "colony",
-				"kind": "move"
-			},
-			{
-				"label": "Bitömmarbottnar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Pallar och täckskivor",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Refraktometer",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Traktor/släp eller bil med släp",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Tät låda för drönarramar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Märkning per bigård",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Lastsäkringar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			}
-		],
-		"fields": [
-			{
-				"label": "Skattlådor",
-				"type": "number",
-				"min": 0,
-				"unit": "st"
-			},
-			{
-				"label": "Vattenhalt",
-				"type": "number",
-				"min": 10,
-				"max": 30,
-				"unit": "%"
-			},
-			{
-				"label": "Nya skattlådor",
-				"type": "number",
-				"min": 0,
-				"unit": "st"
-			},
-			{
-				"label": "Drönarram bytt",
-				"type": "bool"
-			}
-		]
-	},
-	{
-		"name": "Slutskattning och Samuel",
-		"category": "Honung",
-		"purpose": "Ta slutskörden och bygg nästa års produktionssamhällen i samma besök: Samuelavläggare på rent material med inhängd parad drottning, första oxalsyran och första invintringsgivan. Besöket har en dagdel och en kvällsdel.",
-		"steps": [
-			{
-				"title": "Plocka av och flytta yngelrummet",
-				"text": "Plocka av skattlådorna och ställ dem åt sidan, täckta. Flytta det gamla yngelrummet med drottning och bin åt sidan i bigården; det blir en stationär yngelrumsavläggare. Ställ en ny kupa med rent material, nytt vax och foderdeg på den ursprungliga platsen."
-			},
-			{
-				"title": "Nytt samhälle",
-				"text": "Häng in en parad drottning i den nya kupan. Sätt skattlådorna ovanpå med bitömmarbotten så att bina vandrar ned i det nya samhället; flygbina återvänder till det gamla."
-			},
-			{
-				"title": "Yngelrumsavläggaren",
-				"text": "Starta långtidsbehandling med myrsyra på yngelrumsavläggaren. Den står kvar i bigården som en separat enhet för observation och behandling."
-			},
-			{
-				"title": "Samma kväll",
-				"text": "Hämta skattlådorna när bina gått ned. Sublimera det nya samhället med oxalsyra när alla bin är inne och ge foder så att de kan börja bygga vax."
-			}
-		],
-		"checklist": [
-			"Plocka av skattlådorna, ställ åt sidan",
-			"Gamla yngelrummet åt sidan i bigården",
-			"Ny kupa med nytt vax på platsen",
-			"Häng in parad drottning, foderdeg",
-			"Skattlådor på, bitömmarbotten",
-			"Myrsyra på yngelrumsavläggaren",
-			"Hämta skattlådor på kvällen",
-			"Oxalsyra när alla bin är inne",
-			"Ge foder",
-			"Lastsäkra, anteckna i journalen"
-		],
-		"material": [
-			{
-				"item": "Foderdeg",
-				"label": "Foderdeg i nya kupan",
-				"qty": 1,
-				"per": "colony",
-				"kind": "consume"
-			},
-			{
-				"item": "Oxalsyra (sublimering)",
-				"label": "Oxalsyra",
-				"qty": 2,
-				"per": "colony",
-				"kind": "consume"
-			},
-			{
-				"item": "Inverterad sockerlösning",
-				"label": "Flytande foder (ca 45 %)",
-				"qty": 5,
-				"per": "colony",
-				"kind": "consume"
-			},
-			{
-				"item": "Myrsyra",
-				"label": "Myrsyra till yngelrumsavläggaren",
-				"qty": null,
-				"per": "colony",
-				"kind": "consume"
-			},
-			{
-				"label": "Nya kupor med rent material och nytt vax",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Parade drottningar (burar)",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Bitömmarbottnar och foderdeg",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Täckskivor för skattlådorna",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Sublimator, oxalsyra och skyddsutrustning",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Pallar, släp/traktor, lastsäkringar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			}
-		],
-		"fields": [
-			{
-				"label": "Ny kupa nr",
-				"type": "text"
-			},
-			{
-				"label": "Drottning inhängd",
-				"type": "bool"
-			},
-			{
-				"label": "Oxalsyra",
-				"type": "bool"
-			},
-			{
-				"label": "Foder",
-				"type": "number",
-				"min": 0,
-				"unit": "l"
-			}
-		]
-	},
-	{
-		"name": "Oxalsyra och invintring",
-		"category": "Invintring",
-		"purpose": "Behandla med oxalsyra och ge invintringsfoder, en gång i veckan tre veckor i rad.",
-		"steps": [
-			{
-				"title": "Oxalsyra",
-				"text": "Stäng flustret när bina är inne och sublimera enligt godkänd produktinformation. Notera datum och omgång på kortet."
-			},
-			{
-				"title": "Invintringsgiva",
-				"text": "Fyll foderlådan med flytande foder (ca 45 %). Under invintringen ges totalt cirka 15 kg torrsubstans per samhälle."
-			},
-			{
-				"title": "Kontroll",
-				"text": "Kolla att fodret tas, att det nya samhället bygger vax och att det inte förekommer röveri eller sjukdomstecken."
-			},
-			{
-				"title": "Yngelrumsavläggare",
-				"text": "Yngelrumsavläggare som ännu står kvar i bigården körs till uppställningsplatsen för observation och behandling."
-			}
-		],
-		"checklist": [
-			"Vänta tills alla bin är inne",
-			"Förbered sublimator och dos",
-			"Sätt på skyddsutrustning",
-			"Sublimera enligt produktinfo",
-			"Notera omgång och datum",
-			"Fyll foderlådan (ca 45 %)",
-			"Notera mängd foder",
-			"Yngelrumsavläggare till uppställningen",
-			"Kolla röveri och sjukdomstecken",
-			"Rengör utrustning, lastsäkra"
-		],
-		"material": [
-			{
-				"item": "Oxalsyra (sublimering)",
-				"label": "Oxalsyra",
-				"qty": 2,
-				"per": "colony",
-				"kind": "consume"
-			},
-			{
-				"item": "Inverterad sockerlösning",
-				"label": "Flytande foder (ca 45 %)",
-				"qty": 7,
-				"per": "colony",
-				"kind": "consume"
-			},
-			{
-				"label": "Sublimator och oxalsyra",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Andningsskydd, handskar, skyddsglasögon",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Skötselkort och penna",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Foderlådor",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Släp för yngelrumsavläggare",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Lastsäkringar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Rengöringsmedel för utrustning",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			}
-		],
-		"fields": [
-			{
-				"label": "Omgång",
-				"type": "select",
-				"options": [
-					"1",
-					"2",
-					"3"
-				]
-			},
-			{
-				"label": "Oxalsyra",
-				"type": "bool"
-			},
-			{
-				"label": "Foder",
-				"type": "number",
-				"min": 0,
-				"unit": "l"
-			},
-			{
-				"label": "Röveri eller sjukdomstecken",
-				"type": "bool"
-			}
-		]
-	},
-	{
-		"name": "Invintringskontroll",
-		"category": "Invintring",
-		"purpose": "Sista kontrollen av fodermängd och invintringsduglighet samt sista behandlingen före vintern.",
-		"steps": [
-			{
-				"title": "Fodermängd",
-				"text": "Kontrollera foderförrådet (cirka 15 kg) och ge foder eller foderdeg där det är för lite."
-			},
-			{
-				"title": "Invintringsduglighet",
-				"text": "Bedöm samhällets invintringsduglighet och notera resultatet på kortet. Slå ihop svaga men friska samhällen inom samma smittbarriär; misstänkt sjuka samhällen slås inte ihop utan följer åtgärdsplanen."
-			},
-			{
-				"title": "Sista behandling",
-				"text": "Sublimera med oxalsyra enligt godkänd produktinformation."
-			},
-			{
-				"title": "Vinterberedning",
-				"text": "Mussäkra kuporna och sätt spännband och vindskydd vid behov."
-			}
-		],
-		"checklist": [
-			"Kontrollera foder (cirka 15 kg)",
-			"Ge foder där det är för lite",
-			"Bedöm invintringsduglighet",
-			"Notera resultat på kortet",
-			"Slå ihop svaga friska samhällen",
-			"Isolera misstänkt sjuka samhällen",
-			"Sublimera enligt produktinfo",
-			"Mussäkra kuporna",
-			"Spännband och vindskydd",
-			"Lastsäkra, kör hem"
-		],
-		"material": [
-			{
-				"item": "Oxalsyra (sublimering)",
-				"label": "Oxalsyra",
-				"qty": 2,
-				"per": "colony",
-				"kind": "consume"
-			},
-			{
-				"item": "Foderdeg",
-				"label": "Foderdeg där det är för lite",
-				"qty": null,
-				"per": "colony",
-				"kind": "consume"
-			},
-			{
-				"label": "Sublimator och oxalsyra",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Andningsskydd, handskar, skyddsglasögon",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Skötselkort och penna",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Mussäkring och spännband",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Vindskydd vid behov",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Släp och lastsäkringar",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			},
-			{
-				"label": "Märkpenna för kupnummer",
-				"qty": null,
-				"per": "visit",
-				"kind": "consume"
-			}
-		],
-		"fields": [
-			{
-				"label": "Foder",
-				"type": "number",
-				"min": 0,
-				"unit": "kg",
-				"help": "Uppskattat foderförråd, mål cirka 15 kg."
-			},
-			{
-				"label": "Invintringsduglig",
-				"type": "bool"
-			},
-			{
-				"label": "Styrka",
-				"type": "scale",
-				"min": 1,
-				"max": 5,
-				"maps": "strength"
-			},
-			{
-				"label": "Oxalsyra",
-				"type": "bool"
-			}
-		]
-	}
+ {
+  "name": "Dödskontroll",
+  "category": "Biskötsel",
+  "purpose": "Kolla om samhället lever, om yngelsättningen är igång, stödfodra samt göra en stykebedömning.",
+  "steps": [
+   {
+    "title": "Dödskontroll",
+    "text": "Öppna locket och kolla om bina lever. Är det mycket döda bin så kan man lyfta på några ramar för att se om det finns levande bin längre ner. Notera kupnummer och mata. Dessa sätts på mindre kupor senare eller slås ihop."
+   },
+   {
+    "title": "Bedömning och yngelsättning",
+    "text": "Räkna antalet bigångar, skriv upp kupans numer under anteckningar och antalet bigångar. Lyft på någon ram för at kolla om yngelsätningen är igång."
+   },
+   {
+    "title": "Matning",
+    "text": "För starka och normalstarka samhällen läggs två stycken 1 kg degar på, förpackningen skärs upp med en kniv som ett kryss och öppningen läggs ner mot bina. Lägg på täckplasten över foderdegen och vänd på foderlådan på så degen får plats."
+   },
+   {
+    "title": "Ta hem döda samhällen",
+    "text": "Stäng flustret på bikupan och lasta upp döda samhällen på släpvagnen samt lastsäkra. Döda samhällen ska tillbaka till Österbo."
+   }
+  ],
+  "checklist": [
+   "Öppna kupan, kolla om bina lever",
+   "Räkna antal bigångar och skriv upp i skötselkort",
+   "Lyft ramar och kolla yngelsättning, notera på skötselkort",
+   "Ta fram foderdeg, öppna och lägg på",
+   "Lägg på skyddsplast och vänd på foderlådan",
+   "Stäng kupan",
+   "Sätt tilbaka spännband",
+   "Kontrollera att allt sitter bra",
+   "Stäng och lasta eventuella döda samhällen",
+   "Lastsäkra och kör till nästa bigård"
+  ],
+  "material": [
+   {
+    "item": "Foderdeg",
+    "label": "Foderdeg",
+    "qty": 2,
+    "per": "colony",
+    "kind": "consume"
+   },
+   {
+    "label": "Skyddskläder (kupkniv och handskar finns i lådor i bigården)",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Släpkärra för att ta hem döda samhällen",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Lastsäkringar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   }
+  ],
+  "fields": [
+   {
+    "label": "Lever",
+    "type": "bool"
+   },
+   {
+    "label": "Bigångar",
+    "type": "number",
+    "min": 0,
+    "max": 10,
+    "help": "Antal bigångar med bin (0–10)."
+   },
+   {
+    "label": "Yngel",
+    "type": "bool"
+   }
+  ]
+ },
+ {
+  "name": "Vårgenomgång",
+  "category": "Biskötsel",
+  "purpose": "Bedöm varje samhälle efter vintern, ordna om de svaga, ge det foder som behövs och förbered de starka för sälg och maskros: skattlåda med utbyggda ramar på och drönarram i, allt i samma besök.",
+  "steps": [
+   {
+    "title": "Yngelkontroll och bedömning",
+    "text": "Lyft ramar i yngelrummet. Bedöm drottning, yngelmönster och styrka (1–5) och notera tecken på sjukdom. Misstänkt sjukdom hanteras enligt åtgärdsplanen i bihälsoplanen."
+   },
+   {
+    "title": "Ordna om",
+    "text": "Slå ihop svaga men friska samhällen. Samhällen utan drottning eller med sjukdomsmisstanke tas ur produktionen. Jämna ut yngel från starka till svaga vid behov."
+   },
+   {
+    "title": "Foder",
+    "text": "Kontrollera foderförrådet. Ge foderdeg eller ramfodrare där det är glest eller svält hotar, och drivfodra i bigårdar med bra sälgdrag."
+   },
+   {
+    "title": "Förbered för draget",
+    "text": "Starka samhällen får skattlåda med utbyggda ramar på. Sätt in en tomram utan tråd som drönarram i yngelrummet och notera datum på kortet; bina bygger vaxet själva."
+   }
+  ],
+  "checklist": [
+   "Öppna kupan, lyft yngelramar",
+   "Bedöm drottning, yngel, styrka 1–5",
+   "Notera sjukdomstecken på kortet",
+   "Slå ihop eller märk svaga samhällen",
+   "Kontrollera foderförrådet",
+   "Ge foderdeg/ramfodrare vid behov",
+   "Skattlåda med utbyggda ramar på",
+   "Sätt in tomram, notera datum",
+   "Stäng kupan, sätt tillbaka spännband",
+   "Lasta utslagna, lastsäkra"
+  ],
+  "material": [
+   {
+    "item": "Foderdeg",
+    "label": "Foderdeg vid behov",
+    "qty": null,
+    "per": "colony",
+    "kind": "consume"
+   },
+   {
+    "item": "Låda 9 ramar Farrar (yngelrum/skattlåda)",
+    "label": "Skattlåda med utbyggda ramar",
+    "qty": 1,
+    "per": "colony",
+    "kind": "move"
+   },
+   {
+    "item": "Drönarram (tomram utan tråd)",
+    "label": "Drönarram",
+    "qty": 1,
+    "per": "colony",
+    "kind": "move"
+   },
+   {
+    "label": "Foderdeg och ramfodrare",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Skötselkort och penna",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Kupkniv och handskar (finns i bigården)",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Släpkärra för utslagna samhällen",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Lastsäkringar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Märkpenna för kupnummer",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   }
+  ],
+  "fields": [
+   {
+    "label": "Styrka",
+    "type": "scale",
+    "min": 1,
+    "max": 5,
+    "maps": "strength"
+   },
+   {
+    "label": "Yngel",
+    "type": "bool"
+   },
+   {
+    "label": "Drottning sedd",
+    "type": "bool"
+   },
+   {
+    "label": "Sjukdomstecken",
+    "type": "bool"
+   },
+   {
+    "label": "Åtgärd",
+    "type": "select",
+    "options": [
+     "Ingen",
+     "Sammanslagen",
+     "Utslagen",
+     "Fodrad",
+     "Skattlåda på"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Drönarram och plats",
+  "category": "Bihälsa",
+  "purpose": "Byt drönarram: ta ut den gamla och sätt in en ny tomram utan tråd, och skapa plats i yngelrummet så att samhällena inte vill svärma. De uttagna ramarna snabbehandlas med myrsyra och används för drönardominans vid parningsplatsen.",
+  "steps": [
+   {
+    "title": "Byte av drönarram",
+    "text": "Ta ut drönarramen och lägg den i den täta lådan. Sätt in en ny tomram utan tråd i yngelrummet; bina bygger vaxet själva."
+   },
+   {
+    "title": "Plats i yngelrummet",
+    "text": "Ställ in en låda med ramar med mellanväggar och plocka in nya ramar. Stoppa in överblivna foderramar och pollenramar där det finns plats."
+   },
+   {
+    "title": "Stickprovskontroll",
+    "text": "Gör en stickprovskontroll av svärmbeteende. Samhällena har redan skattlådor och ska ha gott om plats för honung."
+   },
+   {
+    "title": "Behandla och transportera",
+    "text": "Snabbehandla de uttagna drönarramarna med myrsyra i den täta lådan och kör dem till parningsplatsen för drönardominans."
+   }
+  ],
+  "checklist": [
+   "Ta ut drönarramen",
+   "Lägg ramen i tät låda",
+   "Sätt in ny tomram utan tråd",
+   "Lådor med mellanväggar: nya ramar",
+   "Foder- och pollenramar in",
+   "Stickprov: svärmbeteende",
+   "Har skattlådorna plats?",
+   "Stäng kupan, spännband",
+   "Myrsyra i lådan",
+   "Lastsäkra, kör till parningsplatsen"
+  ],
+  "material": [
+   {
+    "item": "Drönarram (tomram utan tråd)",
+    "label": "Ny tomram utan tråd",
+    "qty": 1,
+    "per": "colony",
+    "kind": "move"
+   },
+   {
+    "item": "Mellanvägg Farrar",
+    "label": "Mellanväggar",
+    "qty": null,
+    "per": "colony",
+    "kind": "move"
+   },
+   {
+    "item": "Myrsyra",
+    "label": "Myrsyra för snabbehandling",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Överblivna foder- och pollenramar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Tät låda för uttagna drönarramar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Kupkniv och handskar (finns i bigården)",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Lastsäkringar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Skötselkort och penna",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   }
+  ],
+  "fields": [
+   {
+    "label": "Drönarram bytt",
+    "type": "bool",
+    "maps": "treat:@Drönarramsuttag"
+   },
+   {
+    "label": "Svärmceller",
+    "type": "bool"
+   },
+   {
+    "label": "Låda med mellanväggar",
+    "type": "bool"
+   }
+  ]
+ },
+ {
+  "name": "Skattning",
+  "category": "Honung",
+  "purpose": "Ta försommarhonungen med så få lyft som möjligt: skatta, byt drönarram, kontrollera samhället medan det är öppet och sätt på nya skattlådor med utbyggda ramar.",
+  "steps": [
+   {
+    "title": "Skatta",
+    "text": "Kontrollera att ramarna är täckta; mät vattenhalten med refraktometer vid tvekan. Sätt bitömmarbotten och låt bina vandra ned. Märk lådorna per bigård så att honungen hålls åtskild."
+   },
+   {
+    "title": "Byte av drönarram",
+    "text": "Ta ut drönarramen och lägg den i den täta lådan. Ramen snabbehandlas med myrsyra och körs till parningsplatsen. Sätt in en ny tomram utan tråd."
+   },
+   {
+    "title": "Kontroll medan kupan är öppen",
+    "text": "Titta på drottning, yngelbild, foder och sjukdomstecken. Mät kvalstertryck vid tecken på högt tryck eller svag utveckling. Notera avvikelser på kortet."
+   },
+   {
+    "title": "Nya skattlådor",
+    "text": "Sätt på tomma skattlådor med utbyggda ramar på samhällen som fortfarande har drag. Stapla de skattade lådorna på pall, täck bitätt och kör direkt till intagsrummet."
+   }
+  ],
+  "checklist": [
+   "Kontrollera att ramarna är täckta",
+   "Mät vattenhalt vid tvekan",
+   "Sätt bitömmarbotten, ta ned bina",
+   "Märk lådorna med bigård",
+   "Drönarram ut i tät låda, ny tomram in",
+   "Kolla drottning, yngel, foder",
+   "Mät kvalstertryck vid misstanke",
+   "Sätt på skattlådor med utbyggda ramar",
+   "Stapla på pall, täck bitätt",
+   "Lastsäkra, kör till intagsrummet"
+  ],
+  "material": [
+   {
+    "item": "Låda 9 ramar Farrar (yngelrum/skattlåda)",
+    "label": "Tomma skattlådor med utbyggda ramar",
+    "qty": 1,
+    "per": "colony",
+    "kind": "move"
+   },
+   {
+    "item": "Drönarram (tomram utan tråd)",
+    "label": "Ny drönarram",
+    "qty": 1,
+    "per": "colony",
+    "kind": "move"
+   },
+   {
+    "label": "Bitömmarbottnar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Pallar och täckskivor",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Refraktometer",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Traktor/släp eller bil med släp",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Tät låda för drönarramar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Märkning per bigård",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Lastsäkringar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   }
+  ],
+  "fields": [
+   {
+    "label": "Skattlådor",
+    "type": "number",
+    "min": 0,
+    "unit": "st"
+   },
+   {
+    "label": "Vattenhalt",
+    "type": "number",
+    "min": 10,
+    "max": 30,
+    "unit": "%"
+   },
+   {
+    "label": "Nya skattlådor",
+    "type": "number",
+    "min": 0,
+    "unit": "st"
+   },
+   {
+    "label": "Drönarram bytt",
+    "type": "bool",
+    "maps": "treat:@Drönarramsuttag"
+   },
+   {
+    "label": "Varroa, alkoholtvätt",
+    "type": "number",
+    "min": 0,
+    "max": 100,
+    "unit": "%",
+    "maps": "varroa:Alkoholtvätt",
+    "help": "Kvalster per 100 bin (alkoholtvätt). Lämna tomt om ingen mätning görs."
+   }
+  ]
+ },
+ {
+  "name": "Slutskattning och Samuel",
+  "category": "Honung",
+  "purpose": "Ta slutskörden och bygg nästa års produktionssamhällen i samma besök: Samuelavläggare på rent material med inhängd parad drottning, första oxalsyran och första invintringsgivan. Besöket har en dagdel och en kvällsdel.",
+  "steps": [
+   {
+    "title": "Plocka av och flytta yngelrummet",
+    "text": "Plocka av skattlådorna och ställ dem åt sidan, täckta. Flytta det gamla yngelrummet med drottning och bin åt sidan i bigården; det blir en stationär yngelrumsavläggare. Ställ en ny kupa med rent material, nytt vax och foderdeg på den ursprungliga platsen."
+   },
+   {
+    "title": "Nytt samhälle",
+    "text": "Häng in en parad drottning i den nya kupan. Sätt skattlådorna ovanpå med bitömmarbotten så att bina vandrar ned i det nya samhället; flygbina återvänder till det gamla."
+   },
+   {
+    "title": "Yngelrumsavläggaren",
+    "text": "Starta långtidsbehandling med myrsyra på yngelrumsavläggaren. Den står kvar i bigården som en separat enhet för observation och behandling."
+   },
+   {
+    "title": "Samma kväll",
+    "text": "Hämta skattlådorna när bina gått ned. Sublimera det nya samhället med oxalsyra när alla bin är inne och ge foder så att de kan börja bygga vax."
+   }
+  ],
+  "checklist": [
+   "Plocka av skattlådorna, ställ åt sidan",
+   "Gamla yngelrummet åt sidan i bigården",
+   "Ny kupa med nytt vax på platsen",
+   "Häng in parad drottning, foderdeg",
+   "Skattlådor på, bitömmarbotten",
+   "Myrsyra på yngelrumsavläggaren",
+   "Hämta skattlådor på kvällen",
+   "Oxalsyra när alla bin är inne",
+   "Ge foder",
+   "Lastsäkra, anteckna i journalen"
+  ],
+  "material": [
+   {
+    "item": "Foderdeg",
+    "label": "Foderdeg i nya kupan",
+    "qty": 1,
+    "per": "colony",
+    "kind": "consume"
+   },
+   {
+    "item": "Oxalsyra (sublimering)",
+    "label": "Oxalsyra",
+    "qty": 2,
+    "per": "colony",
+    "kind": "consume"
+   },
+   {
+    "item": "Inverterad sockerlösning",
+    "label": "Flytande foder (ca 45 %)",
+    "qty": 5,
+    "per": "colony",
+    "kind": "consume"
+   },
+   {
+    "item": "Myrsyra",
+    "label": "Myrsyra till yngelrumsavläggaren",
+    "qty": null,
+    "per": "colony",
+    "kind": "consume"
+   },
+   {
+    "label": "Nya kupor med rent material och nytt vax",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Parade drottningar (burar)",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Bitömmarbottnar och foderdeg",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Täckskivor för skattlådorna",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Sublimator, oxalsyra och skyddsutrustning",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Pallar, släp/traktor, lastsäkringar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   }
+  ],
+  "fields": [
+   {
+    "label": "Varroa före, alkoholtvätt",
+    "type": "number",
+    "min": 0,
+    "max": 100,
+    "unit": "%",
+    "maps": "varroa:Alkoholtvätt",
+    "help": "Kvalster per 100 bin (alkoholtvätt). Lämna tomt om ingen mätning görs."
+   },
+   {
+    "label": "Ny kupa nr",
+    "type": "text"
+   },
+   {
+    "label": "Drottning inhängd",
+    "type": "bool"
+   },
+   {
+    "label": "Oxalsyra",
+    "type": "bool",
+    "maps": "treat:@Oxalsyra, sublimering"
+   },
+   {
+    "label": "Foder",
+    "type": "number",
+    "min": 0,
+    "unit": "l"
+   }
+  ],
+  "treatment": "@Samuel (yngelrummet tas bort)"
+ },
+ {
+  "name": "Oxalsyra och invintring",
+  "category": "Invintring",
+  "purpose": "Behandla med oxalsyra och ge invintringsfoder, en gång i veckan tre veckor i rad.",
+  "steps": [
+   {
+    "title": "Oxalsyra",
+    "text": "Stäng flustret när bina är inne och sublimera enligt godkänd produktinformation. Notera datum och omgång på kortet."
+   },
+   {
+    "title": "Invintringsgiva",
+    "text": "Fyll foderlådan med flytande foder (ca 45 %). Under invintringen ges totalt cirka 15 kg torrsubstans per samhälle."
+   },
+   {
+    "title": "Kontroll",
+    "text": "Kolla att fodret tas, att det nya samhället bygger vax och att det inte förekommer röveri eller sjukdomstecken."
+   },
+   {
+    "title": "Yngelrumsavläggare",
+    "text": "Yngelrumsavläggare som ännu står kvar i bigården körs till uppställningsplatsen för observation och behandling."
+   }
+  ],
+  "checklist": [
+   "Vänta tills alla bin är inne",
+   "Förbered sublimator och dos",
+   "Sätt på skyddsutrustning",
+   "Sublimera enligt produktinfo",
+   "Notera omgång och datum",
+   "Fyll foderlådan (ca 45 %)",
+   "Notera mängd foder",
+   "Yngelrumsavläggare till uppställningen",
+   "Kolla röveri och sjukdomstecken",
+   "Rengör utrustning, lastsäkra"
+  ],
+  "material": [
+   {
+    "item": "Oxalsyra (sublimering)",
+    "label": "Oxalsyra",
+    "qty": 2,
+    "per": "colony",
+    "kind": "consume"
+   },
+   {
+    "item": "Inverterad sockerlösning",
+    "label": "Flytande foder (ca 45 %)",
+    "qty": 7,
+    "per": "colony",
+    "kind": "consume"
+   },
+   {
+    "label": "Sublimator och oxalsyra",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Andningsskydd, handskar, skyddsglasögon",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Skötselkort och penna",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Foderlådor",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Släp för yngelrumsavläggare",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Lastsäkringar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Rengöringsmedel för utrustning",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   }
+  ],
+  "fields": [
+   {
+    "label": "Omgång",
+    "type": "select",
+    "options": [
+     "1",
+     "2",
+     "3"
+    ]
+   },
+   {
+    "label": "Oxalsyra",
+    "type": "bool",
+    "maps": "treat:@Oxalsyra, sublimering"
+   },
+   {
+    "label": "Foder",
+    "type": "number",
+    "min": 0,
+    "unit": "l"
+   },
+   {
+    "label": "Röveri eller sjukdomstecken",
+    "type": "bool"
+   }
+  ]
+ },
+ {
+  "name": "Invintringskontroll",
+  "category": "Invintring",
+  "purpose": "Sista kontrollen av fodermängd och invintringsduglighet samt sista behandlingen före vintern.",
+  "steps": [
+   {
+    "title": "Fodermängd",
+    "text": "Kontrollera foderförrådet (cirka 15 kg) och ge foder eller foderdeg där det är för lite."
+   },
+   {
+    "title": "Invintringsduglighet",
+    "text": "Bedöm samhällets invintringsduglighet och notera resultatet på kortet. Slå ihop svaga men friska samhällen inom samma smittbarriär; misstänkt sjuka samhällen slås inte ihop utan följer åtgärdsplanen."
+   },
+   {
+    "title": "Sista behandling",
+    "text": "Sublimera med oxalsyra enligt godkänd produktinformation."
+   },
+   {
+    "title": "Vinterberedning",
+    "text": "Mussäkra kuporna och sätt spännband och vindskydd vid behov."
+   }
+  ],
+  "checklist": [
+   "Kontrollera foder (cirka 15 kg)",
+   "Ge foder där det är för lite",
+   "Bedöm invintringsduglighet",
+   "Notera resultat på kortet",
+   "Slå ihop svaga friska samhällen",
+   "Isolera misstänkt sjuka samhällen",
+   "Sublimera enligt produktinfo",
+   "Mussäkra kuporna",
+   "Spännband och vindskydd",
+   "Lastsäkra, kör hem"
+  ],
+  "material": [
+   {
+    "item": "Oxalsyra (sublimering)",
+    "label": "Oxalsyra",
+    "qty": 2,
+    "per": "colony",
+    "kind": "consume"
+   },
+   {
+    "item": "Foderdeg",
+    "label": "Foderdeg där det är för lite",
+    "qty": null,
+    "per": "colony",
+    "kind": "consume"
+   },
+   {
+    "label": "Sublimator och oxalsyra",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Andningsskydd, handskar, skyddsglasögon",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Skötselkort och penna",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Mussäkring och spännband",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Vindskydd vid behov",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Släp och lastsäkringar",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   },
+   {
+    "label": "Märkpenna för kupnummer",
+    "qty": null,
+    "per": "visit",
+    "kind": "consume"
+   }
+  ],
+  "fields": [
+   {
+    "label": "Foder",
+    "type": "number",
+    "min": 0,
+    "unit": "kg",
+    "help": "Uppskattat foderförråd, mål cirka 15 kg."
+   },
+   {
+    "label": "Invintringsduglig",
+    "type": "bool"
+   },
+   {
+    "label": "Styrka",
+    "type": "scale",
+    "min": 1,
+    "max": 5,
+    "maps": "strength"
+   },
+   {
+    "label": "Oxalsyra",
+    "type": "bool",
+    "maps": "treat:@Oxalsyra, sublimering"
+   }
+  ]
+ }
 ]
