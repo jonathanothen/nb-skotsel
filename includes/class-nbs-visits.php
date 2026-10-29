@@ -257,10 +257,12 @@ class NBS_Visits {
 			$colonies = $filled ? array_values(array_column($filled, 'colony_id')) : array_values(array_column(array_filter(NBS_Entities::all($org_id, 'colony'), function ($c) use ($v) {
 				return $c['apiary_id'] === $v['apiary_id'] && in_array($c['status'], NBS_Entities::ACTIVE['colony'], true);
 			}), 'id'));
-			$add = function ($t, $cols, $via, $kill = null, $broodless = false) use (&$out, $items, $v, $tpl) {
-				if (!isset($items[$t]) || !$cols) {
+			$seen = []; // samma behandling på kortet och i ett fält räknas en gång (kortet går före)
+			$add  = function ($t, $cols, $via, $kill = null, $broodless = false) use (&$out, &$seen, $items, $v, $tpl) {
+				if (!isset($items[$t]) || !$cols || isset($seen[$t])) {
 					return;
 				}
+				$seen[$t] = true;
 				$k     = $kill ?? ($items[$t]['data']->avdodning ?? null);
 				$out[] = ['source' => 'visit', 'visit_id' => $v['id'], 'date' => $v['date'], 'status' => $v['status'], 'template' => $tpl['name'], 'template_id' => $tpl['id'], 'apiary_id' => $v['apiary_id'], 'treatment_id' => $t, 'kill' => is_numeric($k) ? (float) $k : null, 'broodless' => (bool) $broodless, 'colony_ids' => array_values($cols), 'via' => $via];
 			};
