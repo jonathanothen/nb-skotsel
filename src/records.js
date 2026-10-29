@@ -1,4 +1,4 @@
-import { useState } from '@wordpress/element';
+import { useState, useRef, useEffect } from '@wordpress/element';
 import { api, uuid } from './api';
 import { useLoad, ErrorBox, Button, Modal, useToast } from './ui';
 import { FieldInput } from './fields';
@@ -146,9 +146,18 @@ export function Table( { rows, cols, onOpen, empty = 'Inga poster.' } ) {
 
 /** Flikar under rubriken. tabs = [[nyckel, etikett, href]]. */
 export function SubTabs( { tabs, current, label } ) {
+	const ref = useRef();
+	// På smal skärm skrollar raden; den valda fliken ska synas.
+	useEffect( () => {
+		const nav = ref.current;
+		const el = nav && nav.querySelector( '.is-active' );
+		if ( el && nav.scrollWidth > nav.clientWidth ) {
+			nav.scrollLeft = el.offsetLeft - ( nav.clientWidth - el.offsetWidth ) / 2;
+		}
+	}, [ current ] );
 	return (
-		<nav className="nbs-subtabs" aria-label={ label }>
-			{ tabs.map( ( [ k, l, h ] ) => <a key={ k } href={ h } className={ current === k ? 'is-active' : '' }>{ l }</a> ) }
+		<nav className="nbs-subtabs" aria-label={ label } ref={ ref }>
+			{ tabs.map( ( [ k, l, h ] ) => <a key={ k } href={ h } className={ current === k ? 'is-active' : '' } aria-current={ current === k ? 'page' : undefined }>{ l }</a> ) }
 		</nav>
 	);
 }

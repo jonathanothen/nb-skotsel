@@ -3,5 +3,5 @@
 		'react-jsx-runtime',
 		'wp-element'
 	),
-	'version' => 'c48c596b6452e77fe84f'
+	'version' => '05b71d907de71ddb86e8'
 );

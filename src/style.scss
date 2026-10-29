@@ -280,8 +280,10 @@ li.is-done .nbs-phase-n { background: $green; color: #fff; }
 .nbs-queen { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .nbs-qdot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.25); display: inline-block; flex: none; }
 
-.nbs-subtabs { display: flex; gap: 4px; border-bottom: 1px solid $line; margin: 4px 0 14px;
-	a { padding: 8px 14px; text-decoration: none; color: $text !important; border-bottom: 3px solid transparent; font-weight: 600; margin-bottom: -1px;
+// Många flikar på en smal skärm: raden skrollar i sidled i stället för att göra sidan bredare.
+.nbs-subtabs { position: relative; display: flex; gap: 4px; border-bottom: 1px solid $line; margin: 4px 0 14px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+	&::-webkit-scrollbar { display: none; }
+	a { flex: none; white-space: nowrap; padding: 8px 14px; text-decoration: none; color: $text !important; border-bottom: 3px solid transparent; font-weight: 600; margin-bottom: -1px;
 		&.is-active { color: $brown !important; border-color: $honey; } } }
 
 .nbs-ops { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 6px; }
