@@ -742,3 +742,6 @@ ol.nbs-sheet-boxes { counter-reset: none; li::before { content: '□ '; } }
 	li { padding: 6px 10px; border-bottom: 1px solid $sand-2; &:last-child { border-bottom: 0; } &.is-have { opacity: .55; } }
 	label { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; cursor: pointer; } }
 .nbs-drag-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; align-self: center; }
+.nbs-card-treat { border: 1px solid $line; border-radius: 10px; padding: 10px 12px 2px; margin-bottom: 10px; background: #fff; }
+.nbs-ok-text { color: $green; font-weight: 600; }
+.nbs-import { margin-top: 20px; padding-top: 12px; border-top: 1px solid $line; }

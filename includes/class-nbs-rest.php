@@ -255,6 +255,10 @@ class NBS_Rest {
 		self::route('/templates/(?P<id>[0-9a-f-]{36})', 'DELETE', function (WP_REST_Request $r) use ($org) {
 			return self::out(NBS_Visits::delete_template($org(), $r->get_url_params()['id']));
 		}, 'can_manage');
+		self::route('/treatments/planned', 'GET', function (WP_REST_Request $r) use ($org) {
+			$y = (int) ($r['year'] ?: current_time('Y'));
+			return NBS_Visits::planned_treatments($org(), "$y-01-01", "$y-12-31");
+		});
 		self::route('/templates/link-examples', 'POST', function () use ($org) {
 			return ['linked' => NBS_Visits::link_examples($org())];
 		}, 'can_manage');
@@ -463,13 +467,14 @@ class NBS_Rest {
 
 		// ---- Export av all data
 		self::route('/export', 'GET', function () use ($org) {
-			global $wpdb;
-			$o   = $org();
-			$out = ['exported_at' => gmdate('c'), 'version' => NBS_VERSION, 'org' => NBS_Auth::current()];
-			foreach (['lists', 'list_items', 'apiaries', 'hives', 'colonies', 'queens', 'events', 'stock_tx', 'stock', 'templates', 'visits', 'inspections', 'plan', 'health', 'batches', 'fills', 'deliveries', 'haccp', 'evaluations', 'rearing', 'budget', 'ledger', 'investments'] as $t) {
-				$out[$t] = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . NBS_DB::table($t) . ' WHERE org_id = %s', $o), ARRAY_A);
-			}
-			return $out;
+			return NBS_Transfer::export($org());
+		}, 'can_manage');
+		// Import av en export (JSON eller Excel omgjord i appen): merge skriver över samma id, replace ersätter allt.
+		self::route('/import', 'POST', function (WP_REST_Request $r) use ($org) {
+			$body = $r->get_json_params() ?: [];
+			return self::out(NBS_Ops::tx(function () use ($org, $body) {
+				return NBS_Transfer::import($org(), $body['data'] ?? null, (string) ($body['mode'] ?? 'merge'));
+			}));
 		}, 'can_manage');
 	}
 

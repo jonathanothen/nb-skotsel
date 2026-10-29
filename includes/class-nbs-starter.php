@@ -200,6 +200,12 @@ class NBS_Starter {
 	public static function ensure_treatments($org_id) {
 		$settings = NBS_Auth::org_settings($org_id);
 		if (!empty($settings['std_treatments_1'])) {
+			// Nya kopplingar i standardkorten (yngelrumsavläggaren med myrsyra) läggs till en gång.
+			if (empty($settings['std_links_2'])) {
+				$settings['std_links_2'] = 1;
+				NBS_Auth::save_org_settings($org_id, $settings);
+				NBS_Visits::link_examples($org_id);
+			}
 			return;
 		}
 		$list = NBS_Lists::get_by_key($org_id, 'behandling');
@@ -229,6 +235,7 @@ class NBS_Starter {
 		}
 		$settings                     = NBS_Auth::org_settings($org_id);
 		$settings['std_treatments_1'] = 1;
+		$settings['std_links_2']      = 1;
 		NBS_Auth::save_org_settings($org_id, $settings);
 		NBS_Visits::link_examples($org_id);
 	}

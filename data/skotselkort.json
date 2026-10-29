@@ -305,6 +305,11 @@
     "label": "Låda med mellanväggar",
     "type": "bool"
    }
+  ],
+  "treatment": [
+   {
+    "name": "Drönarramsuttag"
+   }
   ]
  },
  {
@@ -433,6 +438,11 @@
     "maps": "varroa:Alkoholtvätt",
     "help": "Kvalster per 100 bin (alkoholtvätt). Lämna tomt om ingen mätning görs."
    }
+  ],
+  "treatment": [
+   {
+    "name": "Drönarramsuttag"
+   }
   ]
  },
  {
@@ -559,13 +569,27 @@
     "maps": "treat:@Oxalsyra, sublimering"
    },
    {
+    "label": "Yngelrumsavläggare",
+    "type": "bool",
+    "maps": "split:@Myrsyra, långtidsbehandling",
+    "help": "Det gamla yngelrummet blir en egen avläggare i bigården och får långtidsbehandling med myrsyra."
+   },
+   {
     "label": "Foder",
     "type": "number",
     "min": 0,
     "unit": "l"
    }
   ],
-  "treatment": "@Samuel (yngelrummet tas bort)"
+  "treatment": [
+   {
+    "name": "Samuel (yngelrummet tas bort)"
+   },
+   {
+    "name": "Oxalsyra, sublimering",
+    "broodless": true
+   }
+  ]
  },
  {
   "name": "Oxalsyra och invintring",
@@ -684,6 +708,11 @@
     "label": "Röveri eller sjukdomstecken",
     "type": "bool"
    }
+  ],
+  "treatment": [
+   {
+    "name": "Oxalsyra, sublimering"
+   }
   ]
  },
  {
@@ -801,6 +830,11 @@
     "label": "Oxalsyra",
     "type": "bool",
     "maps": "treat:@Oxalsyra, sublimering"
+   }
+  ],
+  "treatment": [
+   {
+    "name": "Oxalsyra, sublimering"
    }
   ]
  }

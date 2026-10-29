@@ -310,7 +310,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 		steps: orig ? orig.steps.map( ( s ) => ( { ...s, _id: uuid() } ) ) : [ { title: '', text: '', _id: uuid() } ],
 		checklist: orig ? orig.checklist.map( ( c ) => ( { text: c, _id: uuid() } ) ) : [],
 		material: orig ? orig.material.map( ( m ) => ( { ...m, qty: m.qty ?? '', _id: uuid() } ) ) : [],
-		treatment: ( orig && orig.treatment ) || { id: '', kill: '' },
+		treatment: ( ( orig && orig.treatment ) || [] ).map( ( t ) => ( { ...t, kill: t.kill ?? '', _id: uuid() } ) ),
 	} ) );
 	// Behandlingsmedlen med sina fält (avdödning, kopplad lagerartikel).
 	const [ treatList ] = useLoad( () => api( 'lists' ).then( ( ls ) => {
@@ -350,7 +350,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 		checklist: form.checklist.map( ( c ) => c.text ),
 		material: form.material.map( ( { _id, ...m } ) => m ),
 		fields: cleanFields( fields ),
-		treatment: form.treatment.id ? { id: form.treatment.id, kill: form.treatment.kill === '' || form.treatment.kill === null ? null : form.treatment.kill } : null,
+		treatment: form.treatment.filter( ( t ) => t.id ).map( ( t ) => ( { id: t.id, kill: t.kill === '' || t.kill === null ? null : t.kill, broodless: !! t.broodless } ) ),
 		...extra,
 	} );
 	const save = async ( extra, msg ) => {
@@ -1046,37 +1046,43 @@ function PrintCard( { templateId, visitId, templates } ) {
  * registrerad i Bihälsa (syns på samhället, i bihälsologgen och i varroamodellen).
  */
 function CardTreatment( { form, set, treatList, stock } ) {
-	const t = form.treatment;
-	const item = ( treatList || [] ).find( ( x ) => x.id === t.id );
-	const d = ( item && item.data ) || {};
-	const mat = d.material && stock && stock.item[ d.material ];
-	const hasMat = d.material && form.material.some( ( m ) => m.item_id === d.material );
+	const list = form.treatment;
+	const items = ( treatList || [] ).filter( ( x ) => x.active !== false );
+	const upd = ( i, patch ) => set( 'treatment', list.map( ( t, j ) => ( j === i ? { ...t, ...patch } : t ) ) );
 	return (
 		<section className="nbs-card">
-			<h2 className="nbs-h2">Behandling</h2>
-			<p className="nbs-muted">Är kortet en behandling (t.ex. oxalsyrestrips) registreras den på varje samhälle som kontrolleras när besöket avslutas. Den syns då på samhället, under Bihälsa och i varroamodellen. Behandlingsmedlen läggs till i listan Behandlingsmedel.</p>
-			<div className="nbs-form-row">
-				<div className="nbs-field">
-					<label htmlFor="nbs-t-treat">Behandlingsmedel</label>
-					<select id="nbs-t-treat" value={ t.id || '' } onChange={ ( e ) => set( 'treatment', { id: e.target.value, kill: '' } ) }>
-						<option value="">Ingen – kortet är ingen behandling</option>
-						{ ( treatList || [] ).filter( ( x ) => x.active !== false ).map( ( x ) => <option key={ x.id } value={ x.id }>{ x.name }</option> ) }
-					</select>
-				</div>
-				{ t.id && (
-					<div className="nbs-field">
-						<label htmlFor="nbs-t-kill">Förväntad avdödning</label>
-						<div className="nbs-inline"><input id="nbs-t-kill" type="number" min="0" max="100" value={ t.kill ?? '' } placeholder={ d.avdodning !== undefined && d.avdodning !== null && d.avdodning !== '' ? String( d.avdodning ) : '' } onChange={ ( e ) => set( 'treatment', { ...t, kill: e.target.value } ) } /> %</div>
-						<small className="nbs-help">Tomt = behandlingsmedlets värde{ d.avdodning ? ` (${ d.avdodning } %)` : '' }. Kan också anges per kupa med ett fält kopplat till "Behandlingens avdödning".</small>
+			<h2 className="nbs-h2">Behandlingar</h2>
+			<p className="nbs-muted">Behandlingar som alltid görs med kortet registreras på varje samhälle som kontrolleras när besöket avslutas. De syns på samhället, under Bihälsa och i varroamodellen – och i modellen redan när kortet ligger i driftplanen. Behandlingar som bara görs ibland kopplas i stället till ett ja/nej-fält i kupkontrollen.</p>
+			{ list.map( ( t, i ) => {
+				const d = ( items.find( ( x ) => x.id === t.id ) || {} ).data || {};
+				const mat = d.material && stock && stock.item[ d.material ];
+				const hasMat = d.material && form.material.some( ( m ) => m.item_id === d.material );
+				return (
+					<div key={ t._id } className="nbs-card-treat">
+						<div className="nbs-form-row">
+							<div className="nbs-field">
+								<label htmlFor={ 'nbs-t-treat-' + i }>Behandlingsmedel</label>
+								<select id={ 'nbs-t-treat-' + i } value={ t.id || '' } onChange={ ( e ) => upd( i, { id: e.target.value, kill: '' } ) }>
+									<option value="">Välj…</option>
+									{ items.map( ( x ) => <option key={ x.id } value={ x.id }>{ x.name }</option> ) }
+								</select>
+							</div>
+							<div className="nbs-field">
+								<label htmlFor={ 'nbs-t-kill-' + i }>Förväntad avdödning</label>
+								<div className="nbs-inline">
+									<input id={ 'nbs-t-kill-' + i } type="number" min="0" max="100" value={ t.kill ?? '' } placeholder={ d.avdodning !== undefined && d.avdodning !== null && d.avdodning !== '' ? String( d.avdodning ) : '' } onChange={ ( e ) => upd( i, { kill: e.target.value } ) } /> %
+									<button type="button" className="nbs-link-btn" onClick={ () => set( 'treatment', list.filter( ( _, j ) => j !== i ) ) }>Ta bort</button>
+								</div>
+							</div>
+						</div>
+						{ d.foretisk && <label className="nbs-check"><input type="checkbox" checked={ !! t.broodless } onChange={ ( e ) => upd( i, { broodless: e.target.checked } ) } /> Samhället är yngelfritt vid behandlingen (full verkan, t.ex. oxalsyra i det nya Samuelsamhället)</label> }
+						{ mat && ! hasMat && (
+							<p className="nbs-muted">Förbrukar <strong>{ mat.name }</strong> från lagret. <button type="button" className="nbs-link-btn" onClick={ () => set( 'material', [ ...form.material, { _id: uuid(), item_id: d.material, label: mat.name, qty: 1, per: 'colony', kind: 'consume' } ] ) }>Lägg till i materialet (1 per samhälle)</button></p>
+						) }
 					</div>
-				) }
-			</div>
-			{ t.id && mat && ! hasMat && (
-				<p>
-					Behandlingsmedlet förbrukar <strong>{ mat.name }</strong> från lagret.{ ' ' }
-					<button type="button" className="nbs-link-btn" onClick={ () => set( 'material', [ ...form.material, { _id: uuid(), item_id: d.material, label: mat.name, qty: 1, per: 'colony', kind: 'consume' } ] ) }>Lägg till i materialet (1 per samhälle)</button>
-				</p>
-			) }
+				);
+			} ) }
+			<Button small variant="ghost" onClick={ () => set( 'treatment', [ ...list, { _id: uuid(), id: '', kill: '', broodless: false } ] ) }>+ Behandling</Button>
 		</section>
 	);
 }

@@ -1,6 +1,6 @@
 {
   "name": "nb-skotsel",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "description": "Skötsel-CMS för Nordiska Bin (WordPress-plugin)",
   "scripts": {

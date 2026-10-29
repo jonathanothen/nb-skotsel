@@ -19,7 +19,12 @@ export const cleanFields = ( fields ) =>
 export function mapOptions( f, treatments = [] ) {
 	const none = [ '', 'Bara i besöket' ];
 	if ( f.type === 'bool' ) {
-		return [ none, ...treatments.filter( ( t ) => t.active !== false ).map( ( t ) => [ 'treat:' + t.id, 'Ikryssat: registrerar behandlingen ' + t.name ] ) ];
+		const active = treatments.filter( ( t ) => t.active !== false );
+		return [
+			none,
+			...active.map( ( t ) => [ 'treat:' + t.id, 'Ikryssat: registrerar behandlingen ' + t.name ] ),
+			...active.map( ( t ) => [ 'split:' + t.id, 'Ikryssat: delar av en avläggare som behandlas med ' + t.name ] ),
+		];
 	}
 	if ( f.type === 'scale' ) {
 		return [ none, [ 'strength', 'Uppdaterar samhällets styrka' ] ];

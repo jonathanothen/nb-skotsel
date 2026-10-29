@@ -74,7 +74,7 @@ class NBS_Lists {
 				$field['maps'] = 'treatment';
 			}
 			// Ja/nej-fält: ikryssat registrerar behandlingsmedlet (treat:<id>).
-			if ($type === 'bool' && preg_match('/^treat:[0-9a-f-]{36}$/', $maps)) {
+			if ($type === 'bool' && preg_match('/^(treat|split):[0-9a-f-]{36}$/', $maps)) {
 				$field['maps'] = $maps;
 			}
 			if ($type === 'number') {

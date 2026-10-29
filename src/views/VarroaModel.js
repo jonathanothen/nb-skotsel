@@ -24,7 +24,8 @@ function treatmentKill( item, record ) {
 	const listed = d.avdodning !== undefined && d.avdodning !== '' && d.avdodning !== null ? Number( d.avdodning ) / 100 : null;
 	return {
 		kill: own ?? listed ?? fallback[ 0 ],
-		phoretic: d.foretisk !== undefined && d.foretisk !== null && d.foretisk !== '' ? !! d.foretisk : fallback[ 1 ],
+		// Yngelfritt samhälle (t.ex. oxalsyra i det nya Samuelsamhället): full verkan.
+		phoretic: record && ( record.method === 'yngelfritt' || record.broodless ) ? false : d.foretisk !== undefined && d.foretisk !== null && d.foretisk !== '' ? !! d.foretisk : fallback[ 1 ],
 		brood: !! d.i_yngel,
 		periods: Math.max( 1, parseInt( d.perioder, 10 ) || 1 ),
 		source: own !== null ? 'angiven i posten' : listed !== null ? 'från behandlingsmedlet' : 'förslag',
@@ -57,6 +58,7 @@ export default function VarroaModel() {
 	const [ planned, setPlanned ] = useState( saved.planned || [] );
 	const [ off, setOff ] = useState( [] );
 	const [ rows ] = useRecords( 'health', { year }, [ year ] );
+	const [ fromVisits ] = useLoad( () => api( 'treatments/planned?year=' + year ), [ year ] );
 	const [ treatList ] = useLoad( () => api( 'lists' ).then( ( ls ) => {
 		const l = ls.find( ( x ) => x.key === 'behandling' );
 		return l ? api( 'lists/' + l.id ).then( ( r ) => r.items ) : [];
@@ -83,19 +85,29 @@ export default function VarroaModel() {
 		const byKey = {};
 		mine.filter( ( h ) => h.type === 'behandling' && h.rec_date ).forEach( ( h ) => {
 			const key = h.rec_date + ':' + ( h.treatment_id || '' );
-			byKey[ key ] = byKey[ key ] || { key, period: periodOf( h.rec_date ), date: h.rec_date, name: ( items[ h.treatment_id ] && items[ h.treatment_id ].name ) || 'Behandling', n: 0, ...treatmentKill( items[ h.treatment_id ], h ) };
+			byKey[ key ] = byKey[ key ] || { key, period: periodOf( h.rec_date ), date: h.rec_date, name: ( items[ h.treatment_id ] && items[ h.treatment_id ].name ) || 'Behandling', origin: 'Utfört', n: 0, ...treatmentKill( items[ h.treatment_id ], h ) };
 			byKey[ key ].n++;
+		} );
+		// Planerat: driftplanens aktiviteter med skötselkort och besök som inte är avslutade.
+		( fromVisits || [] ).filter( ( v ) => ( kind === 'c' ? v.colony_ids.includes( id ) : v.apiary_id === id ) ).forEach( ( v ) => {
+			const key = ( v.source === 'plan' ? 'p:' + v.plan_id : 'v:' + v.visit_id ) + ':' + v.treatment_id;
+			byKey[ key ] = byKey[ key ] || {
+				key, period: periodOf( v.date ), date: v.date, visit: true,
+				name: ( ( items[ v.treatment_id ] && items[ v.treatment_id ].name ) || 'Behandling' ) + ( v.via === 'field' ? ' (om fältet kryssas i)' : '' ),
+				origin: v.source === 'plan' ? 'Driftplan: ' + v.activity : 'Planerat besök: ' + v.template,
+				n: v.colony_ids.length, ...treatmentKill( items[ v.treatment_id ], { value: v.kill, broodless: v.broodless } ), source: 'från kortet',
+			};
 		} );
 		const recorded = Object.values( byKey ).sort( ( a, b ) => ( a.date < b.date ? -1 : a.date > b.date ? 1 : 0 ) );
 		return { measurements, recorded };
-	}, [ rows, scope, treatList ] ); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [ rows, scope, treatList, fromVisits ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
 	if ( ! rows || ! treatList ) {
 		return <Loading />;
 	}
 
 	const plannedT = planned.filter( ( p ) => p.date && p.date.startsWith( String( year ) ) ).map( ( p, i ) => ( { key: 'p' + i, period: periodOf( p.date ), date: p.date, name: p.name || 'Planerad behandling', kill: ( Number( p.kill ) || 0 ) / 100, phoretic: !! p.phoretic, brood: !! p.brood, periods: p.periods || 1, planned: true } ) );
-	const treatments = data ? [ ...data.recorded.filter( ( t ) => ! off.includes( t.key ) ), ...plannedT ] : plannedT;
+	const treatments = data ? [ ...data.recorded.filter( ( t ) => ! off.includes( t.key ) ).map( ( t ) => ( t.visit ? { ...t, planned: true } : t ) ), ...plannedT ] : plannedT;
 	const opts = { type, immigration: Number( immigration ), vsh: ( Number( vsh ) || 0 ) / 100, start: Number( start ) || 0, treatments };
 	const result = runModel( opts );
 	const without = runModel( { ...opts, treatments: [] } );
@@ -164,6 +176,7 @@ export default function VarroaModel() {
 
 			<section className="nbs-card">
 				<h2 className="nbs-h2">Kvalster i samhället</h2>
+				<PlanVerdict result={ result } threshold={ threshold } year={ year } count={ treatments.length } />
 				<ul className="nbs-stats">
 					<li><strong>{ nf( peak.mites, 0 ) }</strong> som mest ({ fmtDate( ymd( periodStart( year, peak.period ) ) ) })</li>
 					<li><strong>{ nf( at( 8, 1 ).washPct ) } %</strong> på bina 1 augusti</li>
@@ -190,22 +203,24 @@ export default function VarroaModel() {
 				{ data && data.recorded.length === 0 && <p className="nbs-muted">Inga registrerade behandlingar { year }.</p> }
 				{ ( ( data && data.recorded.length > 0 ) || plannedT.length > 0 ) && (
 					<table className="nbs-table">
-						<thead><tr><th>Med</th><th>Datum</th><th>Behandling</th><th>Avdödning</th><th>Hela perioden</th></tr></thead>
+						<thead><tr><th>Med</th><th>Datum</th><th>Behandling</th><th>Källa</th><th>Avdödning</th><th>Hela perioden</th></tr></thead>
 						<tbody>
 							{ data && data.recorded.map( ( t ) => (
-								<tr key={ t.key }>
+								<tr key={ t.key } className={ t.visit ? 'is-planned' : '' }>
 									<td><input type="checkbox" checked={ ! off.includes( t.key ) } onChange={ ( e ) => setOff( ( o ) => ( e.target.checked ? o.filter( ( k ) => k !== t.key ) : [ ...o, t.key ] ) ) } aria-label={ 'Räkna med ' + t.name } /></td>
 									<td>{ fmtDate( t.date ) }</td>
 									<td>{ t.name }{ kind === 'a' && t.n > 1 ? ` (${ t.n } samhällen)` : '' }</td>
+									<td><small>{ t.origin }</small></td>
 									<td>{ pct( t.kill ) } <small className="nbs-muted">{ [ t.source, effect( t ) ].filter( Boolean ).join( ', ' ) }</small></td>
 									<td>{ pct( result[ t.period ].kill ) }</td>
 								</tr>
 							) ) }
 							{ plannedT.map( ( t ) => (
 								<tr key={ t.key } className="is-planned">
-									<td>Plan</td>
+									<td>Prov</td>
 									<td>{ fmtDate( t.date ) }</td>
 									<td>{ t.name }</td>
+									<td><small>Provas i modellen</small></td>
 									<td>{ pct( t.kill ) }{ effect( t ) ? <small className="nbs-muted"> { effect( t ) }</small> : null }</td>
 									<td>{ pct( result[ t.period ].kill ) }</td>
 								</tr>
@@ -270,6 +285,24 @@ function summarize( items ) {
 	const count = {};
 	items.forEach( ( t ) => ( count[ t.name ] = ( count[ t.name ] || 0 ) + 1 ) );
 	return Object.entries( count ).map( ( [ n, k ] ) => ( k > 1 ? `${ n } × ${ k }` : n ) ).join( ', ' );
+}
+
+/** Huvudfrågan: håller de planerade (och gjorda) behandlingarna kvalstren under tröskeln? */
+function PlanVerdict( { result, threshold, year, count } ) {
+	const peak = result.filter( ( r ) => r.period >= 6 ).reduce( ( m, r ) => ( r.washPct > m.washPct ? r : m ), result[ 6 ] );
+	const over = result.find( ( r ) => r.washPct >= threshold );
+	const winter = result[ periodOf( `${ year }-11-01` ) ];
+	if ( ! count ) {
+		return <p className="nbs-warn">Inga behandlingar i modellen. Koppla behandlingar till skötselkorten i driftplanen, eller prova en behandling nedan.</p>;
+	}
+	return (
+		<p className={ over ? 'nbs-warn' : 'nbs-ok-text' }>
+			{ over
+				? `Planen räcker inte: över ${ threshold } % på bina från ${ fmtDate( ymd( periodStart( year, over.period ) ) ) }. `
+				: `Planen håller: under ${ threshold } % på bina hela året. ` }
+			Högst { nf( peak.washPct ) } % ({ fmtDate( ymd( periodStart( year, peak.period ) ) ) }), { nf( winter.mites, 0 ) } kvalster inför vintern.
+		</p>
+	);
 }
 
 function Verdict( { c } ) {

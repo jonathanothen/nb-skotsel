@@ -4,6 +4,8 @@ import { href } from '../router';
 import { useLoad, Loading, ErrorBox, Button, useToast } from '../ui';
 import { useMe } from '../App';
 import { makeXlsx, download } from '../xlsx';
+import { readXlsx, sheetsToData } from '../xlsx-read';
+import { useRegister } from '../register';
 
 const ROLES = { owner: 'Ägare', admin: 'Administratör', member: 'Medlem', viewer: 'Läsare' };
 const TABS = [
@@ -11,7 +13,7 @@ const TABS = [
 	[ 'medlemmar', 'Medlemmar' ],
 	[ 'logg', 'Ändringslogg' ],
 	[ 'moduler', 'Moduler' ],
-	[ 'export', 'Export' ],
+	[ 'export', 'Export och import' ],
 	[ 'uppdateringar', 'Uppdateringar' ],
 ];
 
@@ -293,6 +295,15 @@ function Export() {
 			toast( e.message, 'error' );
 		}
 	};
+	const dbExcel = async () => {
+		setBusy( true );
+		try {
+			download( makeXlsx( dbSheets( await api( 'export' ) ) ), `skotsel-databas-${ stamp }.xlsx` );
+		} catch ( e ) {
+			toast( e.message, 'error' );
+		}
+		setBusy( false );
+	};
 	const excel = async () => {
 		setBusy( true );
 		try {
@@ -305,15 +316,126 @@ function Export() {
 	};
 	return (
 		<section className="nbs-card nbs-narrow">
-			<h2 className="nbs-h2">Export</h2>
+			<h2 className="nbs-h2">Export och import</h2>
 			<p>Ladda ner all data för biodlingen. <strong>Excel</strong> har ett blad per register (bigårdar, samhällen, drottningar, lager, besök och kupkontroll, bihälsa, honung, ekonomi m.m.) med namn i stället för id. <strong>JSON</strong> är en komplett säkerhetskopia som kan läsas in igen eller flyttas till ett annat system.</p>
 			{ me.can.manage ? (
 				<div className="nbs-row-actions">
 					<Button onClick={ excel } disabled={ busy }>{ busy ? 'Skapar…' : 'Ladda ner Excel' }</Button>
 					<Button variant="ghost" onClick={ json }>Ladda ner JSON</Button>
+					<Button variant="ghost" onClick={ dbExcel } disabled={ busy }>Ladda ner Excel för import</Button>
 				</div>
 			) : <p className="nbs-muted">Bara ägare och administratörer kan exportera.</p> }
+			<p className="nbs-muted"><strong>Excel för import</strong> har ett blad per tabell med alla kolumner och id:n, precis som JSON. Ändra i Excel och läs in filen igen nedan – rader med samma id skrivs över.</p>
+			{ me.can.manage && <Import /> }
 		</section>
+	);
+}
+
+/** Excel i databasformat: ett blad per tabell (samma innehåll som JSON-exporten). */
+export function dbSheets( data ) {
+	const sheets = [ { name: 'Om filen', rows: [ [ 'Export från skötselsystemet' ], [ 'Exporterad', data.exported_at ], [ 'Version', data.version ], [ 'Läs in under Inställningar → Export och import. Ändra inte kolumnnamn eller id.' ] ] } ];
+	sheets.push( { name: 'org_settings', rows: [ [ 'json' ], [ JSON.stringify( data.org_settings || {} ) ] ] } );
+	Object.entries( data ).forEach( ( [ k, rows ] ) => {
+		if ( ! Array.isArray( rows ) ) {
+			return;
+		}
+		const cols = [ ...new Set( rows.flatMap( ( r ) => Object.keys( r ) ) ) ];
+		sheets.push( { name: k, rows: [ cols.length ? cols : [ 'id' ], ...rows.map( ( r ) => cols.map( ( c ) => r[ c ] ?? '' ) ) ] } );
+	} );
+	return sheets;
+}
+
+/**
+ * Import av en export (JSON eller Excel för import). "Slå ihop" skriver över rader med samma id och
+ * behåller resten; "Ersätt allt" tar bort biodlingens data i tabellerna i filen först. Före ersättning
+ * laddas en säkerhetskopia av nuvarande data ner automatiskt.
+ */
+function Import() {
+	const toast = useToast();
+	const reg = useRegister();
+	const [ data, setData ] = useState( null );
+	const [ fileName, setFileName ] = useState( '' );
+	const [ mode, setMode ] = useState( 'merge' );
+	const [ confirm, setConfirm ] = useState( '' );
+	const [ busy, setBusy ] = useState( false );
+	const [ err, setErr ] = useState( null );
+	const pick = async ( e ) => {
+		const f = e.target.files && e.target.files[ 0 ];
+		setErr( null );
+		setData( null );
+		if ( ! f ) {
+			return;
+		}
+		setFileName( f.name );
+		try {
+			if ( /.xlsx$/i.test( f.name ) ) {
+				const d = sheetsToData( await readXlsx( f ) );
+				if ( d.org_settings && d.org_settings[ 0 ] && d.org_settings[ 0 ].json ) {
+					d.org_settings = JSON.parse( d.org_settings[ 0 ].json );
+				} else {
+					delete d.org_settings;
+				}
+				setData( d );
+			} else {
+				setData( JSON.parse( await f.text() ) );
+			}
+		} catch ( x ) {
+			setErr( new Error( 'Filen kunde inte läsas: ' + x.message ) );
+		}
+	};
+	const tables = data ? Object.entries( data ).filter( ( [ , v ] ) => Array.isArray( v ) ) : [];
+	const run = async () => {
+		setBusy( true );
+		setErr( null );
+		try {
+			if ( mode === 'replace' ) {
+				const backup = await api( 'export' );
+				download( new Blob( [ JSON.stringify( backup, null, 2 ) ], { type: 'application/json' } ), `skotsel-sakerhetskopia-${ new Date().toISOString().slice( 0, 19 ).replace( /[:T]/g, '-' ) }.json` );
+			}
+			const r = await api( 'import', { method: 'POST', body: { mode, data } } );
+			const total = Object.values( r.counts ).reduce( ( a, b ) => a + b, 0 );
+			toast( `${ total } rader lästes in (${ mode === 'replace' ? 'ersatte' : 'slogs ihop med' } befintlig data).` );
+			setData( null );
+			setFileName( '' );
+			setConfirm( '' );
+			await reg.reload();
+		} catch ( x ) {
+			setErr( x );
+		}
+		setBusy( false );
+	};
+	return (
+		<div className="nbs-import">
+			<h3 className="nbs-h3">Import</h3>
+			<div className="nbs-field">
+				<label htmlFor="nbs-import-file">Fil (JSON eller Excel för import)</label>
+				<input id="nbs-import-file" type="file" accept=".json,.xlsx,application/json" onChange={ pick } />
+			</div>
+			<ErrorBox error={ err } />
+			{ data && (
+				<>
+					<p>{ fileName }{ data.exported_at ? ` – exporterad ${ String( data.exported_at ).slice( 0, 10 ) }` : '' }{ data.version ? `, version ${ data.version }` : '' }:</p>
+					<p className="nbs-muted">{ tables.filter( ( [ , v ] ) => v.length ).map( ( [ k, v ] ) => `${ k } ${ v.length }` ).join( ' · ' ) || 'Inga rader.' }</p>
+					<div className="nbs-seg" role="group" aria-label="Hur filen ska läsas in">
+						<button type="button" className={ mode === 'merge' ? 'is-active' : '' } aria-pressed={ mode === 'merge' } onClick={ () => setMode( 'merge' ) }>Slå ihop – skriv över samma id</button>
+						<button type="button" className={ mode === 'replace' ? 'is-active' : '' } aria-pressed={ mode === 'replace' } onClick={ () => setMode( 'replace' ) }>Ersätt allt</button>
+					</div>
+					{ mode === 'merge' && <p className="nbs-muted">Rader i filen skriver över rader med samma id. Övrig data ligger kvar.</p> }
+					{ mode === 'replace' && (
+						<>
+							<p className="nbs-warn">All biodlingens data i tabellerna i filen tas bort och ersätts med filens innehåll. En säkerhetskopia av nuvarande data laddas ner först.</p>
+							<div className="nbs-field">
+								<label htmlFor="nbs-import-confirm">Skriv ERSÄTT för att bekräfta</label>
+								<input id="nbs-import-confirm" type="text" value={ confirm } onChange={ ( e ) => setConfirm( e.target.value ) } />
+							</div>
+						</>
+					) }
+					<div className="nbs-row-actions">
+						<Button onClick={ run } disabled={ busy || ! tables.length || ( mode === 'replace' && confirm.trim().toUpperCase() !== 'ERSÄTT' ) }>{ busy ? 'Läser in…' : mode === 'replace' ? 'Ersätt med filen' : 'Läs in' }</Button>
+					</div>
+				</>
+			) }
+		</div>
 	);
 }
 

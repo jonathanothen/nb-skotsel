@@ -26,6 +26,32 @@ class NBS_Visits {
 
 	// ------------------------------------------------------------ Skötselkort
 
+	/**
+	 * Kortets behandlingar: [{id, kill, broodless}]. Ett ensamt objekt (äldre format) blir en lista.
+	 * broodless = samhället är yngelfritt vid behandlingen (t.ex. oxalsyra i det nya Samuelsamhället),
+	 * så en behandling som annars bara når kvalster på bina får full verkan i modellen.
+	 */
+	public static function card_treatments($t) {
+		if (!is_array($t)) {
+			return [];
+		}
+		if (isset($t['id'])) {
+			$t = [$t];
+		}
+		$out = [];
+		foreach ($t as $x) {
+			if (!is_array($x) || !NBS_Repo::is_uuid($x['id'] ?? '')) {
+				continue;
+			}
+			$out[] = [
+				'id'        => strtolower($x['id']),
+				'kill'      => isset($x['kill']) && is_numeric($x['kill']) ? max(0, min(100, (float) $x['kill'])) : null,
+				'broodless' => !empty($x['broodless']),
+			];
+		}
+		return $out;
+	}
+
 	private static function cast_template($r) {
 		return [
 			'id'          => $r['id'],
@@ -36,7 +62,7 @@ class NBS_Visits {
 			'checklist'   => NBS_Repo::unjson($r['checklist']),
 			'material'    => NBS_Repo::unjson($r['material']),
 			'fields'      => NBS_Repo::unjson($r['fields']),
-			'treatment'   => NBS_Repo::unjson($r['treatment'] ?? null, null),
+			'treatment'   => self::card_treatments(NBS_Repo::unjson($r['treatment'] ?? null, null)),
 			'sort'        => (int) $r['sort'],
 			'archived'    => (bool) $r['archived'],
 			'visits'      => isset($r['visit_count']) ? (int) $r['visit_count'] : 0,
@@ -93,10 +119,7 @@ class NBS_Visits {
 			'material'    => NBS_Repo::json($mat),
 			'fields'      => NBS_Repo::json(NBS_Lists::sanitize_fields($d['fields'] ?? [])),
 			// Kortet är en behandling: varje kontrollerat samhälle får behandlingen i Bihälsa.
-			'treatment'   => NBS_Repo::is_uuid($d['treatment']['id'] ?? '') ? NBS_Repo::json([
-				'id'   => strtolower($d['treatment']['id']),
-				'kill' => isset($d['treatment']['kill']) && is_numeric($d['treatment']['kill']) ? max(0, min(100, (float) $d['treatment']['kill'])) : null,
-			]) : null,
+			'treatment'   => ($ts = self::card_treatments($d['treatment'] ?? null)) ? NBS_Repo::json($ts) : null,
 		];
 	}
 
@@ -202,6 +225,135 @@ class NBS_Visits {
 		$order = !empty($f['open']) ? 'v.visit_date ASC' : 'v.visit_date DESC';
 		$rows  = $wpdb->get_results("SELECT v.*, u.display_name AS user, (SELECT COUNT(*) FROM $i i WHERE i.visit_id = v.id AND i.skipped = 0) AS inspected FROM $v v LEFT JOIN $u u ON u.ID = v.user_id WHERE $where ORDER BY $order, v.created_at LIMIT $limit", ARRAY_A); // phpcs:ignore
 		return array_map([__CLASS__, 'cast_visit'], $rows);
+	}
+
+	/**
+	 * Behandlingar som ligger i planerade och pågående besök (inte avslutade), så att de syns i
+	 * Bihälsa och i varroamodellen innan besöket är gjort. Kortets behandling och förbrukade
+	 * behandlingsmedel gäller alla samhällen; ja/nej-fält gäller där de kryssats i, eller alla om
+	 * kupkontrollen inte är ifylld än (via = field).
+	 */
+	public static function planned_treatments($org_id, $since, $until) {
+		$list  = NBS_Lists::get_by_key($org_id, 'behandling');
+		$items = [];
+		$by_m  = [];
+		foreach ($list ? NBS_Lists::items($org_id, $list['id']) : [] as $it) {
+			$items[$it['id']] = $it;
+			if (!empty($it['data']->material)) {
+				$by_m[$it['data']->material] = $it['id'];
+			}
+		}
+		$out = [];
+		foreach (self::visits($org_id, ['open' => 1, 'since' => $since, 'until' => $until, 'limit' => 500]) as $row) {
+			$v   = self::visit($org_id, $row['id']);
+			$tpl = $v['template'];
+			if (!$tpl) {
+				continue;
+			}
+			// Samhällena: de som kontrolleras i besöket, annars bigårdens aktiva samhällen.
+			$filled = array_filter($v['inspections'], function ($i) {
+				return !$i['skipped'];
+			});
+			$colonies = $filled ? array_values(array_column($filled, 'colony_id')) : array_values(array_column(array_filter(NBS_Entities::all($org_id, 'colony'), function ($c) use ($v) {
+				return $c['apiary_id'] === $v['apiary_id'] && in_array($c['status'], NBS_Entities::ACTIVE['colony'], true);
+			}), 'id'));
+			$add = function ($t, $cols, $via, $kill = null, $broodless = false) use (&$out, $items, $v, $tpl) {
+				if (!isset($items[$t]) || !$cols) {
+					return;
+				}
+				$k     = $kill ?? ($items[$t]['data']->avdodning ?? null);
+				$out[] = ['source' => 'visit', 'visit_id' => $v['id'], 'date' => $v['date'], 'status' => $v['status'], 'template' => $tpl['name'], 'template_id' => $tpl['id'], 'apiary_id' => $v['apiary_id'], 'treatment_id' => $t, 'kill' => is_numeric($k) ? (float) $k : null, 'broodless' => (bool) $broodless, 'colony_ids' => array_values($cols), 'via' => $via];
+			};
+			foreach ($tpl['treatment'] as $ct) {
+				$add($ct['id'], $colonies, 'card', $ct['kill'], $ct['broodless']);
+			}
+			foreach ($tpl['fields'] as $f) {
+				if (strpos((string) ($f['maps'] ?? ''), 'treat:') !== 0) {
+					continue;
+				}
+				$cols = $filled ? array_values(array_column(array_filter($filled, function ($i) use ($f) {
+					return !empty(((array) $i['data'])[$f['key']]);
+				}), 'colony_id')) : $colonies;
+				$add(substr($f['maps'], 6), $cols, 'field');
+			}
+			foreach ((array) $tpl['material'] as $m) {
+				if (!empty($m['item_id']) && isset($by_m[$m['item_id']])) {
+					$add($by_m[$m['item_id']], $colonies, 'material');
+				}
+			}
+		}
+		return array_merge($out, self::plan_treatments($org_id, $since, $until, $items));
+	}
+
+	/**
+	 * Driftplanens behandlingar: varje aktivitet med skötselkort ger kortets behandlingar (vecka-start)
+	 * i bigårdarna aktiviteten gäller. Finns redan ett besök med samma kort i bigården runt de veckorna
+	 * (planerat eller gjort) räknas besöket i stället.
+	 */
+	private static function plan_treatments($org_id, $since, $until, $items) {
+		$year      = (int) substr($since, 0, 4);
+		$templates = [];
+		foreach (self::templates($org_id) as $t) {
+			$templates[$t['id']] = $t;
+		}
+		$apiaries = array_filter(NBS_Entities::all($org_id, 'apiary'), function ($a) {
+			return !empty($a['active']);
+		});
+		$active   = [];
+		foreach (NBS_Entities::all($org_id, 'colony') as $c) {
+			if (in_array($c['status'], NBS_Entities::ACTIVE['colony'], true) && $c['apiary_id']) {
+				$active[$c['apiary_id']][] = $c['id'];
+			}
+		}
+		$visits = self::visits($org_id, ['since' => ($year - 1) . '-12-01', 'until' => ($year + 1) . '-01-31', 'limit' => 500]);
+		$out    = [];
+		foreach (NBS_Entities::all($org_id, 'plan') as $p) {
+			$tpl = $templates[$p['template_id'] ?? ''] ?? null;
+			if ($p['kind'] !== 'activity' || !$tpl || !$tpl['treatment'] || !$p['week_start']) {
+				continue;
+			}
+			$start = (new DateTime())->setISODate($year, (int) $p['week_start'])->format('Y-m-d');
+			$end   = (new DateTime())->setISODate($year, (int) ($p['week_end'] ?: $p['week_start']), 7)->format('Y-m-d');
+			if ($start < $since || $start > $until) {
+				continue;
+			}
+			$from  = gmdate('Y-m-d', strtotime($start . ' -14 days'));
+			$to    = gmdate('Y-m-d', strtotime($end . ' +14 days'));
+			$scope = is_array($p['scope']) ? $p['scope'] : [];
+			foreach ($apiaries as $a) {
+				if (!self::in_scope($a, $scope) || empty($active[$a['id']])) {
+					continue;
+				}
+				$has_visit = false;
+				foreach ($visits as $v) {
+					if ($v['apiary_id'] === $a['id'] && $v['template_id'] === $tpl['id'] && $v['date'] >= $from && $v['date'] <= $to) {
+						$has_visit = true;
+					}
+				}
+				if ($has_visit) {
+					continue;
+				}
+				foreach ($tpl['treatment'] as $ct) {
+					if (!isset($items[$ct['id']])) {
+						continue;
+					}
+					$k     = $ct['kill'] ?? ($items[$ct['id']]['data']->avdodning ?? null);
+					$out[] = ['source' => 'plan', 'plan_id' => $p['id'], 'activity' => $p['name'], 'date' => $start, 'status' => 'plan', 'template' => $tpl['name'], 'template_id' => $tpl['id'], 'apiary_id' => $a['id'], 'treatment_id' => $ct['id'], 'kill' => is_numeric($k) ? (float) $k : null, 'broodless' => $ct['broodless'], 'colony_ids' => $active[$a['id']], 'via' => 'card'];
+				}
+			}
+		}
+		return $out;
+	}
+
+	/** Samma urval som scopeApiaries i appen: alla, vissa slingor, typer eller utvalda bigårdar. */
+	private static function in_scope($a, $s) {
+		$routes = (array) ($s['routes'] ?? []);
+		$types  = (array) ($s['types'] ?? []);
+		$ids    = (array) ($s['apiaries'] ?? []);
+		if (($s['all'] ?? true) !== false && !$routes && !$types && !$ids) {
+			return true;
+		}
+		return in_array($a['route_id'], $routes, true) || in_array($a['type_id'], $types, true) || in_array($a['id'], $ids, true);
 	}
 
 	public static function visit($org_id, $id, $full = true) {
@@ -467,6 +619,10 @@ class NBS_Visits {
 		if (is_wp_error($r)) {
 			return $r;
 		}
+		$created = self::split_off($org_id, $v, $fields, $ins, $name);
+		if (is_wp_error($created)) {
+			return $created;
+		}
 		NBS_Events::add($org_id, 'besok', [
 			'apiary_id' => $v['apiary_id'],
 			'other_id'  => $id,
@@ -476,6 +632,7 @@ class NBS_Visits {
 		$wpdb->update(self::t('visits'), [
 			'status'     => 'done',
 			'batches'    => NBS_Repo::json($batches),
+			'created'    => $created ? NBS_Repo::json(['colonies' => $created]) : null,
 			'end_time'   => $v['end_time'] ?: current_time('H:i'),
 			'done_at'    => NBS_DB::now(),
 			'updated_at' => NBS_DB::now(),
@@ -539,21 +696,27 @@ class NBS_Visits {
 			$given = $kill ? $num($data[$kill] ?? '') : null;
 			$done  = [];
 			$tid   = $treat ? (string) ($data[$treat] ?? '') : '';
-			$card  = is_array($card_treatment) && isset($items[$card_treatment['id'] ?? '']) ? $card_treatment['id'] : '';
+			$cards = [];
+			foreach (self::card_treatments($card_treatment) as $ct) {
+				if (isset($items[$ct['id']])) {
+					$cards[$ct['id']] = $ct;
+				}
+			}
 			$ticks = [];
 			foreach ($checks as $key => $t) {
 				if (!empty($data[$key]) && isset($items[$t])) {
 					$ticks[] = $t;
 				}
 			}
-			foreach (array_merge(isset($items[$tid]) ? [$tid] : [], $card ? [$card] : [], $ticks, $from_material) as $t) {
+			foreach (array_merge(isset($items[$tid]) ? [$tid] : [], array_keys($cards), $ticks, $from_material) as $t) {
 				if (isset($done[$t])) {
 					continue;
 				}
 				$done[$t] = true;
 				// Avdödning: fältet i kupkontrollen, kortets värde, annars behandlingsmedlets.
-				$k      = $given ?? ($t === $card && isset($card_treatment['kill']) ? (float) $card_treatment['kill'] : null);
-				$rows[] = ['type' => 'behandling', 'treatment_id' => $t, 'value' => $k ?? $num($items[$t]['data']->avdodning ?? '')];
+				$ct     = $cards[$t] ?? null;
+				$k      = $given ?? ($ct['kill'] ?? null);
+				$rows[] = ['type' => 'behandling', 'treatment_id' => $t, 'value' => $k ?? $num($items[$t]['data']->avdodning ?? ''), 'method' => !empty($ct['broodless']) ? 'yngelfritt' : null];
 			}
 			foreach ($rows as $row) {
 				$res = NBS_Entities::save($org_id, 'health', $row + ['colony_id' => $i['colony_id']] + $base);
@@ -563,6 +726,52 @@ class NBS_Visits {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * Ja/nej-fält kopplade till "split:<behandling>": ikryssat delas en avläggare av från samhället
+	 * (t.ex. yngelrumsavläggaren vid Samuel) och den får behandlingen. Returnerar de nya samhällena.
+	 */
+	private static function split_off($org_id, $v, $fields, $ins, $name) {
+		$splits = [];
+		foreach ($fields as $f) {
+			if (strpos((string) ($f['maps'] ?? ''), 'split:') === 0) {
+				$splits[$f['key']] = substr($f['maps'], 6);
+			}
+		}
+		$created = [];
+		foreach ($ins as $i) {
+			$data = (array) $i['data'];
+			foreach ($splits as $key => $t) {
+				if (empty($data[$key])) {
+					continue;
+				}
+				$r = NBS_Ops::split($org_id, $i['colony_id'], ['code' => NBS_Ops::next_code($org_id, 'colony'), 'status' => 'avlaggare'], $v['date'], 'Avläggare från besöket ' . $name);
+				if (is_wp_error($r)) {
+					return $r;
+				}
+				$child     = $r['child'];
+				$created[] = $child['id'];
+				$item      = NBS_Lists::get_item($org_id, $t);
+				if ($item) {
+					$kill = $item['data']->avdodning ?? null;
+					$res  = NBS_Entities::save($org_id, 'health', [
+						'type'         => 'behandling',
+						'treatment_id' => $t,
+						'value'        => is_numeric($kill) ? (float) $kill : null,
+						'colony_id'    => $child['id'],
+						'apiary_id'    => $child['apiary_id'],
+						'rec_date'     => $v['date'],
+						'visit_id'     => $v['id'],
+						'note'         => 'Besök: ' . $name,
+					]);
+					if (is_wp_error($res)) {
+						return $res;
+					}
+				}
+			}
+		}
+		return $created;
 	}
 
 	/** Öppnar ett avslutat besök igen: lagerbokningar och historik ångras. */
@@ -581,7 +790,14 @@ class NBS_Visits {
 		}
 		$wpdb->delete(NBS_DB::table('events'), ['org_id' => $org_id, 'type' => 'besok', 'other_id' => $id]);
 		$wpdb->delete(NBS_Entities::table('health'), ['org_id' => $org_id, 'visit_id' => $id]);
-		$wpdb->update(self::t('visits'), ['status' => 'ongoing', 'batches' => null, 'done_at' => null, 'updated_at' => NBS_DB::now()], ['id' => $id, 'org_id' => $org_id]);
+		// Avläggare som besöket delade av tas bort igen (med sina händelser).
+		$made = NBS_Repo::unjson($wpdb->get_var($wpdb->prepare('SELECT created FROM ' . self::t('visits') . ' WHERE id = %s', $id)));
+		foreach ((array) ($made['colonies'] ?? []) as $cid) {
+			$events = NBS_DB::table('events');
+			$wpdb->query($wpdb->prepare("DELETE FROM $events WHERE org_id = %s AND (colony_id = %s OR other_id = %s)", $org_id, $cid, $cid)); // phpcs:ignore
+			$wpdb->delete(NBS_Entities::table('colony'), ['org_id' => $org_id, 'id' => $cid]);
+		}
+		$wpdb->update(self::t('visits'), ['status' => 'ongoing', 'batches' => null, 'created' => null, 'done_at' => null, 'updated_at' => NBS_DB::now()], ['id' => $id, 'org_id' => $org_id]);
 		NBS_Repo::audit('visit', $id, 'update', ['status' => 'reopened']);
 		return self::visit($org_id, $id);
 	}
@@ -608,14 +824,22 @@ class NBS_Visits {
 
 	/** "@Behandlingsmedel" i kortets behandling och fältens kopplingar byts mot postens id. */
 	private static function resolve_card_links($d, $find) {
-		if (!empty($d['treatment']) && is_string($d['treatment'])) {
-			$id             = $find('behandling', ltrim($d['treatment'], '@'));
-			$d['treatment'] = $id ? ['id' => $id, 'kill' => null] : null;
+		// Kortets behandlingar: "@Namn" eller [{name, kill, broodless}].
+		if (!empty($d['treatment'])) {
+			$list = is_string($d['treatment']) ? [['name' => $d['treatment']]] : (array) $d['treatment'];
+			$out  = [];
+			foreach ($list as $x) {
+				$id = $find('behandling', ltrim((string) ($x['name'] ?? ''), '@'));
+				if ($id) {
+					$out[] = ['id' => $id, 'kill' => $x['kill'] ?? null, 'broodless' => !empty($x['broodless'])];
+				}
+			}
+			$d['treatment'] = $out;
 		}
 		foreach ($d['fields'] as &$f) {
-			if (isset($f['maps']) && strpos($f['maps'], 'treat:@') === 0) {
-				$id        = $find('behandling', substr($f['maps'], 7));
-				$f['maps'] = $id ? 'treat:' . $id : '';
+			if (isset($f['maps']) && preg_match('/^(treat|split):@(.+)$/', $f['maps'], $m)) {
+				$id        = $find('behandling', $m[2]);
+				$f['maps'] = $id ? $m[1] . ':' . $id : '';
 			}
 		}
 		unset($f);
@@ -662,7 +886,7 @@ class NBS_Visits {
 						$hit = $i;
 					}
 				}
-				if ($hit === null && strpos($df['maps'], 'varroa:') === 0) {
+				if ($hit === null && preg_match('/^(varroa|split):/', $df['maps'])) {
 					$fields[] = $df;
 					$changed  = true;
 				} elseif ($hit !== null && empty($fields[$hit]['maps']) && $fields[$hit]['type'] === $df['type']) {

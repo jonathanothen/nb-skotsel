@@ -78,6 +78,7 @@ export default function Health( { route } ) {
 			<SubTabs label="Bihälsa" current={ tab } tabs={ [ [ 'oversikt', 'Översikt', href( 'bihalsa' ) ], [ 'registrera', 'Registrera', href( 'bihalsa/registrera' ) ], [ 'behandlingar', 'Behandlingar', href( 'bihalsa/behandlingar' ) ], [ 'logg', 'Logg', href( 'bihalsa/logg' ) ], [ 'foder', 'Foder', href( 'bihalsa/foder' ) ], [ 'modell', 'Varroamodell', href( 'bihalsa/modell' ) ] ] } />
 			{ tab === 'registrera' && <Register onDone={ bump } /> }
 			{ tab === 'logg' && <Log stamp={ stamp } custom={ modules.fields.health || [] } onChanged={ bump } /> }
+			{ tab === 'behandlingar' && <PlannedTreatments /> }
 			{ tab === 'behandlingar' && <Log key="behandlingar" initialType="behandling" stamp={ stamp } custom={ modules.fields.health || [] } onChanged={ bump } /> }
 			{ tab === 'foder' && <Feed target={ modules.settings.feed_target } /> }
 			{ tab === 'modell' && <VarroaModel /> }
@@ -456,6 +457,48 @@ export function ColonyHealth( { colonyId } ) {
 			<ul className="nbs-contents">
 				{ rows.map( ( h ) => <li key={ h.id }><span className="nbs-muted">{ fmtDate( h.rec_date ) }</span> { healthText( h, reg ) }{ h.note && <em> – { h.note }</em> }</li> ) }
 			</ul>
+		</section>
+	);
+}
+
+/**
+ * Planerade behandlingar: driftplanens aktiviteter med skötselkort och besök som inte är avslutade.
+ * De registreras på samhällena när besöken avslutas.
+ */
+function PlannedTreatments() {
+	const reg = useRegister();
+	// Efter invintringen visas nästa års plan.
+	const [ year, setYear ] = useState( new Date().getMonth() >= 10 ? thisYear() + 1 : thisYear() );
+	const [ rows ] = useLoad( () => api( 'treatments/planned?year=' + year ), [ year ] );
+	if ( ! rows ) {
+		return null;
+	}
+	const groups = {};
+	rows.forEach( ( r ) => {
+		const key = ( r.source === 'plan' ? r.plan_id : r.visit_id ) + ':' + r.treatment_id;
+		const g = ( groups[ key ] = groups[ key ] || { ...r, id: key, apiaries: new Set(), colonies: 0 } );
+		g.apiaries.add( r.apiary_id );
+		g.colonies += r.colony_ids.length;
+	} );
+	const list = Object.values( groups ).sort( ( a, b ) => ( a.date < b.date ? -1 : 1 ) );
+	return (
+		<section className="nbs-card">
+			<div className="nbs-card-head">
+				<h2 className="nbs-h2">Planerade behandlingar</h2>
+				<YearSelect value={ year } onChange={ setYear } />
+			</div>
+			<p className="nbs-muted">Från driftplanens aktiviteter med skötselkort och från besök som inte är avslutade. De registreras på samhällena när besöken avslutas, och syns redan nu i varroamodellen.</p>
+			<Table
+				rows={ list }
+				empty=""
+				cols={ [
+					[ 'Datum', ( r ) => ( r.source === 'plan' ? fmtDate( r.date ) : <a href={ href( 'besok/' + r.visit_id ) }>{ fmtDate( r.date ) }</a> ) ],
+					[ 'Behandling', ( r ) => reg.itemName( r.treatment_id ) + ( r.kill !== null ? `, ${ fmtNum( r.kill ) } %` : '' ) + ( r.broodless ? ' (yngelfritt)' : '' ) ],
+					[ 'Källa', ( r ) => ( r.source === 'plan' ? 'Driftplan: ' + r.activity : 'Besök: ' + r.template + ( r.status === 'ongoing' ? ' (pågår)' : '' ) ) ],
+					[ 'Bigårdar', ( r ) => ( r.apiaries.size === 1 && reg.apiary[ [ ...r.apiaries ][ 0 ] ] ? reg.apiary[ [ ...r.apiaries ][ 0 ] ].name : r.apiaries.size ) ],
+					[ 'Samhällen', ( r ) => r.colonies + ( r.via === 'field' ? ' (om fältet kryssas i)' : '' ) ],
+				] }
+			/>
 		</section>
 	);
 }
