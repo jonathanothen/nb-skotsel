@@ -501,7 +501,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 
 			<section className="nbs-card">
 				<h2 className="nbs-h2">5. Kupkontroll</h2>
-				<p className="nbs-muted">Uppgifterna som fylls i för varje samhälle. Typen <em>Skala</em> ger stora knappar (t.ex. styrka 1–5) och <em>Ja/nej</em> två knappar. Ett tal- eller skalfält kan uppdatera samhällets styrka.</p>
+				<p className="nbs-muted">Uppgifterna som fylls i för varje samhälle. Typen <em>Skala</em> ger stora knappar (t.ex. styrka 1–5) och <em>Ja/nej</em> två knappar. Under <em>När besöket avslutas</em> kopplas fältet vidare: styrka, varroamätning (syns i Bihälsa och varroamodellen) eller behandling – ett ja/nej-fält som kryssas i registrerar behandlingen på samhället.</p>
 				<div className="nbs-form">
 					<FieldDefs fields={ fields } setFields={ setFields } refLists={ refLists } allowMaps treatments={ treatList || [] } />
 				</div>
