@@ -368,7 +368,7 @@ class NBS_Visits {
 		$v = self::cast_visit($r);
 		if ($full) {
 			$v['inspections'] = array_map(function ($x) {
-				return ['colony_id' => $x['colony_id'], 'skipped' => (bool) $x['skipped'], 'data' => (object) NBS_Repo::unjson($x['data']), 'note' => (string) $x['note']];
+				return ['colony_id' => $x['colony_id'], 'skipped' => (bool) $x['skipped'], 'data' => (object) NBS_Repo::unjson($x['data']), 'note' => (string) $x['note'], 'at' => $x['taken_at'] ?? null];
 			}, $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . self::t('inspections') . ' WHERE org_id = %s AND visit_id = %s', $org_id, $id), ARRAY_A));
 			$v['template'] = $v['template_id'] ? self::template($org_id, $v['template_id']) : null;
 		}
@@ -478,9 +478,11 @@ class NBS_Visits {
 					$c        = NBS_Entities::get($org_id, 'colony', $cid);
 					$errors[] = 'Samhälle ' . $c['code'] . ': ' . $e;
 				}
+				// Tidpunkten då samhället kontrollerades, enligt fältdatorns klocka (inte när servern fick den). Tom = ingen.
+				$at = self::client_time($ins['at'] ?? '');
 				$wpdb->query($wpdb->prepare(
-					'INSERT INTO ' . self::t('inspections') . ' (id, org_id, visit_id, colony_id, skipped, data, note, updated_at) VALUES (%s, %s, %s, %s, %d, %s, %s, %s) ON DUPLICATE KEY UPDATE skipped = VALUES(skipped), data = VALUES(data), note = VALUES(note), updated_at = VALUES(updated_at)',
-					wp_generate_uuid4(), $org_id, $id, $cid, empty($ins['skipped']) ? 0 : 1, NBS_Repo::json((object) $vals), sanitize_textarea_field((string) ($ins['note'] ?? '')), NBS_DB::now()
+					'INSERT INTO ' . self::t('inspections') . ' (id, org_id, visit_id, colony_id, skipped, data, note, taken_at, updated_at) VALUES (%s, %s, %s, %s, %d, %s, %s, NULLIF(%s, \'\'), %s) ON DUPLICATE KEY UPDATE skipped = VALUES(skipped), data = VALUES(data), note = VALUES(note), taken_at = COALESCE(VALUES(taken_at), taken_at), updated_at = VALUES(updated_at)',
+					wp_generate_uuid4(), $org_id, $id, $cid, empty($ins['skipped']) ? 0 : 1, NBS_Repo::json((object) $vals), sanitize_textarea_field((string) ($ins['note'] ?? '')), $at, NBS_DB::now()
 				));
 			}
 		}
@@ -495,6 +497,14 @@ class NBS_Visits {
 			$out['warnings'] = $errors;
 		}
 		return $out;
+	}
+
+	/** Klientens tidpunkt som "Y-m-d H:i:s" (lokal tid), eller tom sträng om den inte går att tolka. */
+	private static function client_time($t) {
+		if (is_string($t) && preg_match('/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/', trim($t), $m)) {
+			return $m[1] . ' ' . $m[2] . ':' . $m[3] . ':' . ($m[4] ?? '00');
+		}
+		return '';
 	}
 
 	private static function clean_material($org_id, $rows) {
@@ -721,7 +731,7 @@ class NBS_Visits {
 				$rows[] = ['type' => 'behandling', 'treatment_id' => $t, 'value' => $k ?? $num($items[$t]['data']->avdodning ?? ''), 'method' => !empty($ct['broodless']) ? 'yngelfritt' : null];
 			}
 			foreach ($rows as $row) {
-				$res = NBS_Entities::save($org_id, 'health', $row + ['colony_id' => $i['colony_id']] + $base);
+				$res = NBS_Entities::save($org_id, 'health', $row + ['colony_id' => $i['colony_id'], 'rec_time' => $i['at'] ? substr($i['at'], 11, 8) : null] + $base);
 				if (is_wp_error($res)) {
 					return $res;
 				}
@@ -764,6 +774,7 @@ class NBS_Visits {
 						'colony_id'    => $child['id'],
 						'apiary_id'    => $child['apiary_id'],
 						'rec_date'     => $v['date'],
+						'rec_time'     => $i['at'] ? substr($i['at'], 11, 8) : null,
 						'visit_id'     => $v['id'],
 						'note'         => 'Besök: ' . $name,
 					]);

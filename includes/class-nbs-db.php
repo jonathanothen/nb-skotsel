@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
  */
 class NBS_DB {
 
-	const DB_VERSION = '11';
+	const DB_VERSION = '12';
 
 	public static function table($name) {
 		global $wpdb;
@@ -255,6 +255,7 @@ $cols			data longtext NULL,
 			skipped tinyint(1) NOT NULL DEFAULT 0,
 			data longtext NULL,
 			note text NULL,
+			taken_at datetime NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY visit_colony (visit_id,colony_id),
@@ -264,6 +265,7 @@ $cols			data longtext NULL,
 		// dbDelta lägger inte alltid till nya kolumner i befintliga tabeller (t.ex. på SQLite).
 		self::ensure_column($tpl, 'treatment', 'longtext NULL');
 		self::ensure_column($visits, 'created', 'longtext NULL');
+		self::ensure_column($insp, 'taken_at', 'datetime NULL');
 
 		update_option('nbs_db_version', self::DB_VERSION);
 	}

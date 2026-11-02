@@ -138,6 +138,7 @@ class NBS_Entities {
 			'cols'  => [
 				'type'         => 'enum:health',
 				'rec_date'     => 'date',
+				'rec_time'     => 'text',
 				'colony_id'    => 'uuid',
 				'apiary_id'    => 'uuid',
 				'method'       => 'text',

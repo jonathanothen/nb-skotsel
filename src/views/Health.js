@@ -107,7 +107,7 @@ function Overview( { stamp } ) {
 			{ open.length > 0 && (
 				<div className="nbs-alert">
 					<strong>Öppna sjukdomsärenden:</strong>
-					<ul>{ open.map( ( h ) => <li key={ h.id }><a href={ href( 'samhallen/' + h.colony_id ) }>{ reg.colony[ h.colony_id ] ? 'Samhälle ' + reg.colony[ h.colony_id ].code : 'Samhälle' }</a> · { h.disease } ({ fmtDate( h.rec_date ) }){ h.action && ` – ${ h.action }` }</li> ) }</ul>
+					<ul>{ open.map( ( h ) => <li key={ h.id }><a href={ href( 'samhallen/' + h.colony_id ) }>{ reg.colony[ h.colony_id ] ? 'Samhälle ' + reg.colony[ h.colony_id ].code : 'Samhälle' }</a> · { h.disease } ({ fmtDate( h.rec_date ) + ( h.rec_time ? ' ' + h.rec_time.slice( 0, 5 ) : '' ) }){ h.action && ` – ${ h.action }` }</li> ) }</ul>
 				</div>
 			) }
 			{ aps.length === 0 && <Empty title="Inga samhällen ännu" /> }
@@ -124,7 +124,7 @@ function Overview( { stamp } ) {
 							} ],
 							[ 'Senaste behandling', ( c ) => {
 								const t = latest( c.id, 'behandling' );
-								return t ? <>{ healthText( t, reg ) } <span className="nbs-muted">({ fmtDate( t.rec_date ) })</span></> : <span className="nbs-muted">–</span>;
+								return t ? <>{ healthText( t, reg ) } <span className="nbs-muted">({ fmtDate( t.rec_date ) + ( t.rec_time ? ' ' + t.rec_time.slice( 0, 5 ) : '' ) })</span></> : <span className="nbs-muted">–</span>;
 							} ],
 						] }
 					/>
@@ -346,6 +346,7 @@ export function healthFields( diseases = [], current = '' ) {
 	return [
 		{ key: 'type', label: 'Typ', type: 'select', noEmpty: true, options: HEALTH_TYPES },
 		{ key: 'rec_date', label: 'Datum', type: 'date' },
+		{ key: 'rec_time', label: 'Klockslag', type: 'text', help: 'Valfritt, till exempel 14:32. Fältdatorn fyller i det automatiskt.' },
 		{ key: 'colony_id', label: 'Samhälle', type: 'ref', ref: '@colony' },
 		{ key: 'method', label: 'Metod', type: 'select', options: VARROA_METHODS.map( ( m ) => m[ 0 ] ), when: ( f ) => f.type === 'varroa' },
 		{ key: 'value', label: 'Värde', type: 'number', when: ( f ) => f.type === 'varroa' },
@@ -383,7 +384,7 @@ function Log( { stamp, custom, onChanged, initialType = '' } ) {
 					onOpen={ setEditing }
 					empty="Inga poster det här året."
 					cols={ [
-						[ 'Datum', ( h ) => fmtDate( h.rec_date ) ],
+						[ 'Datum', ( h ) => fmtDate( h.rec_date ) + ( h.rec_time ? ' ' + h.rec_time.slice( 0, 5 ) : '' ) ],
 						[ 'Typ', ( h ) => ( HEALTH_TYPES.find( ( t ) => t[ 0 ] === h.type ) || [ '', h.type ] )[ 1 ] ],
 						[ 'Samhälle', ( h ) => ( reg.colony[ h.colony_id ] ? <a href={ href( 'samhallen/' + h.colony_id ) }>{ reg.colony[ h.colony_id ].code }</a> : '–' ) ],
 						[ 'Bigård', ( h ) => ( reg.apiary[ h.apiary_id ] ? reg.apiary[ h.apiary_id ].name : '–' ) ],
@@ -455,7 +456,7 @@ export function ColonyHealth( { colonyId } ) {
 				<a href={ href( 'bihalsa/logg' ) }>Hela loggen</a>
 			</div>
 			<ul className="nbs-contents">
-				{ rows.map( ( h ) => <li key={ h.id }><span className="nbs-muted">{ fmtDate( h.rec_date ) }</span> { healthText( h, reg ) }{ h.note && <em> – { h.note }</em> }</li> ) }
+				{ rows.map( ( h ) => <li key={ h.id }><span className="nbs-muted">{ fmtDate( h.rec_date ) + ( h.rec_time ? ' ' + h.rec_time.slice( 0, 5 ) : '' ) }</span> { healthText( h, reg ) }{ h.note && <em> – { h.note }</em> }</li> ) }
 			</ul>
 		</section>
 	);
