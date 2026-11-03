@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
  */
 class NBS_DB {
 
-	const DB_VERSION = '12';
+	const DB_VERSION = '13';
 
 	public static function table($name) {
 		global $wpdb;
@@ -207,6 +207,8 @@ $cols			data longtext NULL,
 			checklist longtext NULL,
 			material longtext NULL,
 			fields longtext NULL,
+			kind varchar(12) NOT NULL DEFAULT 'skotsel',
+			links longtext NULL,
 			sort int(11) NOT NULL DEFAULT 0,
 			archived tinyint(1) NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL,
@@ -266,6 +268,8 @@ $cols			data longtext NULL,
 		self::ensure_column($tpl, 'treatment', 'longtext NULL');
 		self::ensure_column($visits, 'created', 'longtext NULL');
 		self::ensure_column($insp, 'taken_at', 'datetime NULL');
+		self::ensure_column($tpl, 'kind', "varchar(12) NOT NULL DEFAULT 'skotsel'");
+		self::ensure_column($tpl, 'links', 'longtext NULL');
 
 		update_option('nbs_db_version', self::DB_VERSION);
 	}

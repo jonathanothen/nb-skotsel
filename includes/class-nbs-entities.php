@@ -126,6 +126,7 @@ class NBS_Entities {
 				'source'      => 'code',
 				'scope'       => 'json',
 				'done'        => 'json',
+				'checked'     => 'json',
 				'sort'        => 'int',
 			],
 		],

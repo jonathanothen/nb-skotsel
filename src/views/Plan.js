@@ -100,7 +100,7 @@ export default function Plan( { route } ) {
 					{ me.can.manage && <Button onClick={ importPlan }>Lägg in driftplanen</Button> }
 				</Empty>
 			) : tab === 'vecka' ? (
-				<WeekView plan={ plan } year={ year } templates={ templates } catalog={ catalog } onDone={ toggleDone } />
+				<WeekView plan={ plan } year={ year } templates={ templates } catalog={ catalog } onDone={ toggleDone } onChanged={ reload } />
 			) : (
 				<YearView plan={ plan } year={ year } templates={ templates } catalog={ catalog } onOpen={ setEditing } onDone={ toggleDone } />
 			) }
@@ -193,7 +193,7 @@ function YearView( { plan, year, templates, catalog, onOpen, onDone } ) {
 
 /* ------------------------------------------------------------------ Veckans arbete */
 
-function WeekView( { plan, year, templates, catalog, onDone } ) {
+function WeekView( { plan, year, templates, catalog, onDone, onChanged } ) {
 	const reg = useRegister();
 	const me = useMe();
 	const toast = useToast();
@@ -250,7 +250,26 @@ function WeekView( { plan, year, templates, catalog, onDone } ) {
 					const v = vis.filter( ( x ) => x.apiary_id === id );
 					return v.some( ( x ) => x.status === 'done' ) ? 'done' : v.length ? 'planned' : 'missing';
 				};
-				const aps = t ? scopeApiaries( reg, p.scope ) : [];
+				const aps = t && t.kind !== 'aktivitet' ? scopeApiaries( reg, p.scope ) : [];
+				const planById = Object.fromEntries( plan.map( ( x ) => [ x.id, x ] ) );
+				const ticked = ( p.checked && p.checked[ year ] ) || [];
+				const tick = async ( index, checked ) => {
+					try {
+						await api( `plan/${ p.id }/check`, { method: 'POST', body: { year, index, checked } } );
+						onChanged();
+					} catch ( e ) {
+						toast( e.message, 'error' );
+					}
+				};
+				const makeCard = async () => {
+					try {
+						const r = await api( `plan/${ p.id }/make-card`, { method: 'POST' } );
+						toast( 'Aktivitetskortet skapades.' );
+						go( 'besok/kort/' + r.template.id );
+					} catch ( e ) {
+						toast( e.message, 'error' );
+					}
+				};
 				const groups = {};
 				aps.forEach( ( a ) => ( groups[ a.route_id || '' ] = groups[ a.route_id || '' ] || [] ).push( a ) );
 				const missing = aps.filter( ( a ) => state( a.id ) === 'missing' );
@@ -264,7 +283,24 @@ function WeekView( { plan, year, templates, catalog, onDone } ) {
 							</div>
 							{ me.can.write && <label className="nbs-inline-check"><input type="checkbox" checked={ !! done } onChange={ ( e ) => onDone( p, e.target.checked ) } /> Klar { year }</label> }
 						</div>
-						{ t && (
+						{ ! t && me.can.write && p.kind !== 'drag' && (
+							<p><Button small variant="ghost" onClick={ makeCard }>Skapa aktivitetskort</Button> <span className="nbs-muted">Lägg till moment som kan bockas av, till exempel marknader att anmäla sig till.</span></p>
+						) }
+						{ t && t.kind === 'aktivitet' && (
+							<>
+								<p><a href={ href( 'besok/kort/' + t.id ) }>Aktivitetskort: { t.name }</a> · { ticked.length } av { t.checklist.length } moment klara { year }</p>
+								{ t.checklist.map( ( c, i ) => {
+									const link = t.links && t.links[ i ] ? planById[ t.links[ i ] ] : null;
+									return (
+										<label key={ i } className="nbs-inline-check" style={ { display: 'block' } }>
+											<input type="checkbox" disabled={ ! me.can.write } checked={ ticked.includes( i ) } onChange={ ( e ) => tick( i, e.target.checked ) } /> { c }
+											{ link && <span className="nbs-muted"> → { link.name } (v. { link.week_start })</span> }
+										</label>
+									);
+								} ) }
+							</>
+						) }
+						{ t && t.kind !== 'aktivitet' && (
 							<>
 								<p><a href={ href( 'besok/kort/' + t.id ) }>Skötselkort: { t.name }</a> · { aps.length - missing.length } av { aps.length } bigårdar har besök</p>
 								{ Object.entries( groups ).map( ( [ rid, arr ] ) => {

@@ -132,6 +132,50 @@ class NBS_Domain {
 		return NBS_Entities::get($org_id, 'plan', $id);
 	}
 
+	/**
+	 * Bockar av (eller tar bort) en kontrollpunkt på aktivitetens kort för ett år. Kortet är en mall; vad som är gjort
+	 * i år hör till aktiviteten, så det sparas på planraden: {"2026": [0, 2]} = punkt 1 och 3 är klara.
+	 */
+	public static function plan_check($org_id, $id, $year, $index, $checked) {
+		$p = NBS_Entities::get($org_id, 'plan', $id);
+		if (!$p) {
+			return new WP_Error('nbs_404', 'Aktiviteten finns inte.', ['status' => 404]);
+		}
+		$tpl = $p['template_id'] ? NBS_Visits::template($org_id, $p['template_id']) : null;
+		if (!$tpl || $index < 0 || $index >= count($tpl['checklist'])) {
+			return new WP_Error('nbs_check', 'Aktiviteten har ingen sådan kontrollpunkt.', ['status' => 400]);
+		}
+		$map  = is_array($p['checked']) ? $p['checked'] : [];
+		$key  = (string) (int) $year;
+		$list = array_map('intval', (array) ($map[$key] ?? []));
+		$list = $checked ? array_values(array_unique(array_merge($list, [(int) $index]))) : array_values(array_diff($list, [(int) $index]));
+		sort($list);
+		if ($list) {
+			$map[$key] = $list;
+		} else {
+			unset($map[$key]);
+		}
+		NBS_Entities::patch($org_id, 'plan', $id, ['checked' => NBS_Repo::json((object) $map)]);
+		return NBS_Entities::get($org_id, 'plan', $id);
+	}
+
+	/** Gör ett aktivitetskort av en enkel aktivitet och kopplar det till aktiviteten. */
+	public static function plan_make_card($org_id, $id) {
+		$p = NBS_Entities::get($org_id, 'plan', $id);
+		if (!$p) {
+			return new WP_Error('nbs_404', 'Aktiviteten finns inte.', ['status' => 404]);
+		}
+		if ($p['template_id']) {
+			return new WP_Error('nbs_card', 'Aktiviteten har redan ett kort.', ['status' => 400]);
+		}
+		$tpl = NBS_Visits::save_template($org_id, ['name' => $p['name'], 'purpose' => (string) $p['note'], 'category_id' => $p['category_id'], 'kind' => 'aktivitet']);
+		if (is_wp_error($tpl)) {
+			return $tpl;
+		}
+		NBS_Entities::patch($org_id, 'plan', $id, ['template_id' => $tpl['id']]);
+		return ['template' => $tpl, 'plan' => NBS_Entities::get($org_id, 'plan', $id)];
+	}
+
 	// ------------------------------------------------------------ Fas 5: bihälsa och foder
 
 	/**

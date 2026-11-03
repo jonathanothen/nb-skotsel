@@ -8,6 +8,7 @@ import { FieldInput, formatValue } from '../fields';
 import FieldDefs, { withIds, cleanFields } from '../FieldDefs';
 import { QueenBadge } from '../reg-ui';
 import { useStock, fmtQty, unit } from '../stock';
+import { useRecords, saveRecord } from '../records';
 
 const PER = { colony: 'per samhälle', apiary: 'per bigård', visit: 'per besök' };
 const STATUS = { planned: 'Planerat', ongoing: 'Pågår', done: 'Klart' };
@@ -174,7 +175,7 @@ function VisitList( { tab, templates, reloadTemplates } ) {
 			{ body }
 			{ planning && (
 				<PlanModal
-					templates={ templates.filter( ( t ) => ! t.archived ) }
+					templates={ templates.filter( ( t ) => ! t.archived && t.kind !== 'aktivitet' ) }
 					onClose={ () => setPlanning( false ) }
 					onDone={ ( ids ) => {
 						setPlanning( false );
@@ -284,7 +285,7 @@ function TemplateList( { templates, onImport, onLink } ) {
 				<div className="nbs-cards">
 					{ list.map( ( t ) => (
 						<a key={ t.id } className={ `nbs-apiary-card${ t.archived ? ' is-inactive' : '' }` } href={ href( 'besok/kort/' + t.id ) } style={ { '--nbs-accent': reg.itemColor( t.category_id ) || '#A8741A' } }>
-							<span className="nbs-apiary-type">{ reg.itemName( t.category_id ) || 'Skötselkort' }</span>
+							<span className="nbs-apiary-type">{ t.kind === 'aktivitet' ? 'Aktivitetskort' : reg.itemName( t.category_id ) || 'Skötselkort' }</span>
 							<strong className="nbs-apiary-name">{ t.name }</strong>
 							<span className="nbs-muted nbs-apiary-sum">{ t.steps.length } rutinsteg · { t.checklist.length } kontrollpunkter · { t.fields.length } kupkontrollfält · { t.material.filter( ( m ) => m.item_id ).length } från lagret</span>
 							<span className="nbs-muted nbs-apiary-sum">{ t.visits ? `Använt i ${ t.visits } besök` : 'Inte använt än' }</span>
@@ -308,7 +309,8 @@ function TemplateEditor( { id, templates, onSaved } ) {
 		category_id: orig ? orig.category_id || '' : '',
 		purpose: orig ? orig.purpose : '',
 		steps: orig ? orig.steps.map( ( s ) => ( { ...s, _id: uuid() } ) ) : [ { title: '', text: '', _id: uuid() } ],
-		checklist: orig ? orig.checklist.map( ( c ) => ( { text: c, _id: uuid() } ) ) : [],
+		kind: orig ? orig.kind || 'skotsel' : 'skotsel',
+		checklist: orig ? orig.checklist.map( ( c, i ) => ( { text: c, plan_id: ( orig.links && orig.links[ i ] ) || '', _id: uuid() } ) ) : [],
 		material: orig ? orig.material.map( ( m ) => ( { ...m, qty: m.qty ?? '', _id: uuid() } ) ) : [],
 		treatment: ( ( orig && orig.treatment ) || [] ).map( ( t ) => ( { ...t, kill: t.kill ?? '', _id: uuid() } ) ),
 	} ) );
@@ -318,6 +320,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 		return l ? api( 'lists/' + l.id ).then( ( r ) => r.items ) : [];
 	} ) );
 	const [ fields, setFields ] = useState( () => withIds( orig ? orig.fields : [ { key: 'styrka', label: 'Styrka', type: 'scale', min: 1, max: 5, maps: 'strength' } ] ) );
+	const [ plan, , reloadPlan ] = useRecords( 'plan', {}, [] );
 	const [ busy, setBusy ] = useState( false );
 	const [ err, setErr ] = useState( null );
 	if ( id !== 'ny' && ! orig ) {
@@ -347,7 +350,9 @@ function TemplateEditor( { id, templates, onSaved } ) {
 		category_id: form.category_id || null,
 		purpose: form.purpose,
 		steps: form.steps.map( ( { title, text } ) => ( { title, text } ) ),
+		kind: form.kind,
 		checklist: form.checklist.map( ( c ) => c.text ),
+		links: Object.fromEntries( form.checklist.map( ( c, i ) => [ i, c.plan_id ] ).filter( ( [ , p ] ) => p ) ),
 		material: form.material.map( ( { _id, ...m } ) => m ),
 		fields: cleanFields( fields ),
 		treatment: form.treatment.filter( ( t ) => t.id ).map( ( t ) => ( { id: t.id, kill: t.kill === '' || t.kill === null ? null : t.kill, broodless: !! t.broodless } ) ),
@@ -406,7 +411,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 			<a className="nbs-back" href={ href( 'besok/kort' ) }>← Skötselkort</a>
 			<header className="nbs-page-head">
 				<div>
-					<p className="nbs-eyebrow">Skötselkort{ orig && orig.archived ? ' · arkiverat' : '' }</p>
+					<p className="nbs-eyebrow">{ form.kind === 'aktivitet' ? 'Aktivitetskort' : 'Skötselkort' }{ orig && orig.archived ? ' · arkiverat' : '' }</p>
 					<h1 className="nbs-h1">{ form.name || 'Nytt skötselkort' }</h1>
 				</div>
 				<div className="nbs-row-actions">
@@ -488,16 +493,54 @@ function TemplateEditor( { id, templates, onSaved } ) {
 			</section>
 
 			<section className="nbs-card">
+				<h2 className="nbs-h2">Korttyp</h2>
+				<div className="nbs-field">
+					<label htmlFor="nbs-t-kind">Typ</label>
+					<select id="nbs-t-kind" value={ form.kind } onChange={ ( e ) => set( 'kind', e.target.value ) } disabled={ !! ( orig && orig.visits ) }>
+						<option value="skotsel">Skötselkort (besök i bigård, med kupkontroll)</option>
+						<option value="aktivitet">Aktivitetskort (en aktivitet som ska ske under en period, utan bigård)</option>
+					</select>
+					<p className="nbs-muted">{ form.kind === 'aktivitet' ? 'Kontrollpunkterna blir moment som bockas av på aktiviteten i driftplanen, till exempel marknader att anmäla sig till. Koppla gärna varje punkt till en egen aktivitet.' : 'Ett skötselkort används vid besök i bigårdar och fylls i per samhälle.' }</p>
+				</div>
+			</section>
+
+			<section className="nbs-card">
 				<h2 className="nbs-h2">4. Checklista</h2>
 				{ form.checklist.map( ( c, i ) => (
 					<div key={ c._id } className="nbs-check-row">
 						<span className="nbs-rn">{ i + 1 }</span>
 						<input type="text" value={ c.text } onChange={ ( e ) => C.upd( i, { text: e.target.value } ) } aria-label={ `Kontrollpunkt ${ i + 1 }` } />
+						{ ( plan || [] ).length > 0 && (
+							<select value={ c.plan_id || '' } onChange={ ( e ) => C.upd( i, { plan_id: e.target.value } ) } aria-label={ `Aktivitet för kontrollpunkt ${ i + 1 }` } title="Koppla kontrollpunkten till en aktivitet i driftplanen">
+								<option value="">Ingen aktivitet</option>
+								{ plan.filter( ( p ) => p.kind !== 'drag' ).map( ( p ) => <option key={ p.id } value={ p.id }>{ p.name } (v. { p.week_start }{ p.week_end && p.week_end !== p.week_start ? '–' + p.week_end : '' })</option> ) }
+							</select>
+						) }
 						{ rowBtns( C, i, form.checklist.length, 'punkten' ) }
 					</div>
 				) ) }
-				<Button small variant="ghost" onClick={ () => set( 'checklist', [ ...form.checklist, { _id: uuid(), text: '' } ] ) }>+ Kontrollpunkt</Button>
+				<Button small variant="ghost" onClick={ () => set( 'checklist', [ ...form.checklist, { _id: uuid(), text: '', plan_id: '' } ] ) }>+ Kontrollpunkt</Button>
 			</section>
+
+			{ orig && plan && (
+				<section className="nbs-card">
+					<h2 className="nbs-h2">Används i aktiviteter</h2>
+					<p className="nbs-muted">Flera aktiviteter i driftplanen kan använda samma kort.</p>
+					{ plan.filter( ( p ) => p.template_id === orig.id ).length === 0 && <p className="nbs-muted">Ingen aktivitet använder kortet än.</p> }
+					{ plan.filter( ( p ) => p.template_id === orig.id ).map( ( p ) => (
+						<div key={ p.id } className="nbs-check-row">
+							<span>{ p.name } <span className="nbs-muted">(v. { p.week_start }{ p.week_end && p.week_end !== p.week_start ? '–' + p.week_end : '' })</span></span>
+							{ me.can.write && <Button small variant="ghost" onClick={ async () => { await saveRecord( 'plan', { template_id: null }, p.id ); reloadPlan(); } }>Ta bort koppling</Button> }
+						</div>
+					) ) }
+					{ me.can.write && plan.filter( ( p ) => p.kind !== 'drag' && ! p.template_id ).length > 0 && (
+						<select value="" onChange={ async ( e ) => { if ( e.target.value ) { await saveRecord( 'plan', { template_id: orig.id }, e.target.value ); reloadPlan(); } } } aria-label="Koppla en aktivitet till kortet">
+							<option value="">+ Koppla en aktivitet till kortet …</option>
+							{ plan.filter( ( p ) => p.kind !== 'drag' && ! p.template_id ).map( ( p ) => <option key={ p.id } value={ p.id }>{ p.name } (v. { p.week_start })</option> ) }
+						</select>
+					) }
+				</section>
+			) }
 
 			<section className="nbs-card">
 				<h2 className="nbs-h2">5. Kupkontroll</h2>

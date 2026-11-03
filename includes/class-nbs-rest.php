@@ -341,6 +341,12 @@ class NBS_Rest {
 		self::route('/plan/(?P<id>[0-9a-f-]{36})/done', 'POST', function (WP_REST_Request $r) use ($org) {
 			return self::out(NBS_Domain::plan_done($org(), $r->get_url_params()['id'], (int) $r['year'], !empty($r['done'])));
 		}, 'can_write');
+		self::route('/plan/(?P<id>[0-9a-f-]{36})/check', 'POST', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Domain::plan_check($org(), $r->get_url_params()['id'], (int) $r['year'], (int) $r['index'], !empty($r['checked'])));
+		}, 'can_write');
+		self::route('/plan/(?P<id>[0-9a-f-]{36})/make-card', 'POST', function (WP_REST_Request $r) use ($org) {
+			return self::out(NBS_Domain::plan_make_card($org(), $r->get_url_params()['id']));
+		}, 'can_write');
 		self::route('/health/bulk', 'POST', function (WP_REST_Request $r) use ($org) {
 			$body = $r->get_json_params() ?: [];
 			return self::out(NBS_Ops::tx(function () use ($org, $body) {

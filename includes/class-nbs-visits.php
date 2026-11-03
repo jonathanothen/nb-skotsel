@@ -62,6 +62,8 @@ class NBS_Visits {
 			'checklist'   => NBS_Repo::unjson($r['checklist']),
 			'material'    => NBS_Repo::unjson($r['material']),
 			'fields'      => NBS_Repo::unjson($r['fields']),
+			'kind'        => $r['kind'] ?? 'skotsel',
+			'links'       => (object) NBS_Repo::unjson($r['links'] ?? null),
 			'treatment'   => self::card_treatments(NBS_Repo::unjson($r['treatment'] ?? null, null)),
 			'sort'        => (int) $r['sort'],
 			'archived'    => (bool) $r['archived'],
@@ -82,6 +84,17 @@ class NBS_Visits {
 		global $wpdb;
 		$r = NBS_Repo::is_uuid($id) ? $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::t('templates') . ' WHERE org_id = %s AND id = %s', $org_id, $id), ARRAY_A) : null;
 		return $r ? self::cast_template($r) : null;
+	}
+
+	/** Kopplingar från kortets kontrollpunkter till aktiviteter i driftplanen: {"<index>": "<plan-id>"}. */
+	private static function clean_links($links, $count) {
+		$out = [];
+		foreach ((array) $links as $i => $pid) {
+			if (is_numeric($i) && (int) $i >= 0 && (int) $i < $count && NBS_Repo::is_uuid($pid)) {
+				$out[(string) (int) $i] = strtolower($pid);
+			}
+		}
+		return $out;
 	}
 
 	private static function clean_template($d) {
@@ -118,6 +131,8 @@ class NBS_Visits {
 			'checklist'   => NBS_Repo::json($check),
 			'material'    => NBS_Repo::json($mat),
 			'fields'      => NBS_Repo::json(NBS_Lists::sanitize_fields($d['fields'] ?? [])),
+			'kind'        => ($d['kind'] ?? '') === 'aktivitet' ? 'aktivitet' : 'skotsel',
+			'links'       => NBS_Repo::json((object) self::clean_links($d['links'] ?? [], count($check))),
 			// Kortet är en behandling: varje kontrollerat samhälle får behandlingen i Bihälsa.
 			'treatment'   => ($ts = self::card_treatments($d['treatment'] ?? null)) ? NBS_Repo::json($ts) : null,
 		];
@@ -381,6 +396,9 @@ class NBS_Visits {
 		$tpl = self::template($org_id, $d['template_id'] ?? '');
 		if (!$tpl) {
 			return new WP_Error('nbs_tpl', 'Välj ett skötselkort.', ['status' => 400]);
+		}
+		if ($tpl['kind'] === 'aktivitet') {
+			return new WP_Error('nbs_kind', 'Ett aktivitetskort har inga besök per bigård. Bocka av momenten på aktiviteten i driftplanen.', ['status' => 400]);
 		}
 		$date = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($d['date'] ?? '')) ? $d['date'] : current_time('Y-m-d');
 		$ids  = [];
