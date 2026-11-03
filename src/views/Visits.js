@@ -9,6 +9,7 @@ import FieldDefs, { withIds, cleanFields } from '../FieldDefs';
 import { QueenBadge } from '../reg-ui';
 import { useStock, fmtQty, unit } from '../stock';
 import { useRecords, saveRecord } from '../records';
+import { LinkPicker } from '../links';
 
 const PER = { colony: 'per samhälle', apiary: 'per bigård', visit: 'per besök' };
 const STATUS = { planned: 'Planerat', ongoing: 'Pågår', done: 'Klart' };
@@ -310,6 +311,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 		purpose: orig ? orig.purpose : '',
 		steps: orig ? orig.steps.map( ( s ) => ( { ...s, _id: uuid() } ) ) : [ { title: '', text: '', _id: uuid() } ],
 		kind: orig ? orig.kind || 'skotsel' : 'skotsel',
+		sections: orig ? ( orig.sections || [] ).map( ( s ) => ( { _id: uuid(), title: s.title || '', items: ( s.items || [] ).map( ( it ) => ( { _id: uuid(), text: it.text, link: it.link || null } ) ) } ) ) : [],
 		checklist: orig ? orig.checklist.map( ( c, i ) => ( { text: c, plan_id: ( orig.links && orig.links[ i ] ) || '', _id: uuid() } ) ) : [],
 		material: orig ? orig.material.map( ( m ) => ( { ...m, qty: m.qty ?? '', _id: uuid() } ) ) : [],
 		treatment: ( ( orig && orig.treatment ) || [] ).map( ( t ) => ( { ...t, kill: t.kill ?? '', _id: uuid() } ) ),
@@ -321,6 +323,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 	} ) );
 	const [ fields, setFields ] = useState( () => withIds( orig ? orig.fields : [ { key: 'styrka', label: 'Styrka', type: 'scale', min: 1, max: 5, maps: 'strength' } ] ) );
 	const [ plan, , reloadPlan ] = useRecords( 'plan', {}, [] );
+	const linkCtx = { reg, plan, templates, stock };
 	const [ busy, setBusy ] = useState( false );
 	const [ err, setErr ] = useState( null );
 	if ( id !== 'ny' && ! orig ) {
@@ -340,6 +343,8 @@ function TemplateEditor( { id, templates, onSaved } ) {
 		},
 	} );
 	const S = listOps( 'steps' );
+	const setSection = ( si, patch ) => set( 'sections', form.sections.map( ( s, j ) => ( j === si ? { ...s, ...patch } : s ) ) );
+	const setItem = ( si, ii, patch ) => setSection( si, { items: form.sections[ si ].items.map( ( it, j ) => ( j === ii ? { ...it, ...patch } : it ) ) } );
 	const C = listOps( 'checklist' );
 	const M = listOps( 'material' );
 	const refLists = [ ...reg.lists.filter( ( l ) => ! l.archived ) ];
@@ -351,8 +356,9 @@ function TemplateEditor( { id, templates, onSaved } ) {
 		purpose: form.purpose,
 		steps: form.steps.map( ( { title, text } ) => ( { title, text } ) ),
 		kind: form.kind,
-		checklist: form.checklist.map( ( c ) => c.text ),
-		links: Object.fromEntries( form.checklist.map( ( c, i ) => [ i, c.plan_id ] ).filter( ( [ , p ] ) => p ) ),
+		sections: form.sections.map( ( s ) => ( { title: s.title, items: s.items.filter( ( it ) => it.text.trim() ).map( ( it ) => ( { text: it.text, link: it.link && it.link.id ? it.link : null } ) ) } ) ),
+		checklist: form.kind === 'aktivitet' ? [] : form.checklist.map( ( c ) => c.text ),
+		links: form.kind === 'aktivitet' ? {} : Object.fromEntries( form.checklist.map( ( c, i ) => [ i, c.plan_id ] ).filter( ( [ , p ] ) => p ) ),
 		material: form.material.map( ( { _id, ...m } ) => m ),
 		fields: cleanFields( fields ),
 		treatment: form.treatment.filter( ( t ) => t.id ).map( ( t ) => ( { id: t.id, kill: t.kill === '' || t.kill === null ? null : t.kill, broodless: !! t.broodless } ) ),
@@ -443,7 +449,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 				</div>
 			</section>
 
-			<CardTreatment form={ form } set={ set } treatList={ treatList } stock={ stock } />
+			{ form.kind !== 'aktivitet' && <CardTreatment form={ form } set={ set } treatList={ treatList } stock={ stock } /> }
 
 			<section className="nbs-card">
 				<h2 className="nbs-h2">2. Material</h2>
@@ -504,6 +510,33 @@ function TemplateEditor( { id, templates, onSaved } ) {
 				</div>
 			</section>
 
+
+			{ form.kind === 'aktivitet' && (
+				<section className="nbs-card">
+					<h2 className="nbs-h2">Checklistor</h2>
+					<p className="nbs-muted">Lägg till så många checklistor du vill, till exempel Förberedelser och Efteråt. Varje punkt kan länkas till en annan del av CMS:et: en aktivitet, bigård, samhälle, skötselkort eller lagerartikel.</p>
+					{ form.sections.map( ( s, si ) => (
+						<div key={ s._id } className="nbs-card nbs-card-inner">
+							<div className="nbs-check-row">
+								<input type="text" value={ s.title } placeholder="Rubrik för checklistan" onChange={ ( e ) => setSection( si, { title: e.target.value } ) } aria-label={ `Rubrik för checklista ${ si + 1 }` } />
+								<Button small variant="danger-link" onClick={ () => set( 'sections', form.sections.filter( ( _, j ) => j !== si ) ) }>Ta bort listan</Button>
+							</div>
+							{ s.items.map( ( it, ii ) => (
+								<div key={ it._id } className="nbs-check-row">
+									<span className="nbs-rn">{ ii + 1 }</span>
+									<input type="text" value={ it.text } onChange={ ( e ) => setItem( si, ii, { text: e.target.value } ) } aria-label={ `Punkt ${ ii + 1 } i checklista ${ si + 1 }` } />
+									<LinkPicker link={ it.link } onChange={ ( link ) => setItem( si, ii, { link } ) } ctx={ linkCtx } label={ `Länk för punkt ${ ii + 1 }` } />
+									<Button small variant="ghost" onClick={ () => setSection( si, { items: s.items.filter( ( _, j ) => j !== ii ) } ) } aria-label="Ta bort punkten">×</Button>
+								</div>
+							) ) }
+							<Button small variant="ghost" onClick={ () => setSection( si, { items: [ ...s.items, { _id: uuid(), text: '', link: null } ] } ) }>+ Punkt</Button>
+						</div>
+					) ) }
+					<Button small variant="ghost" onClick={ () => set( 'sections', [ ...form.sections, { _id: uuid(), title: '', items: [ { _id: uuid(), text: '', link: null } ] } ] ) }>+ Checklista</Button>
+				</section>
+			) }
+
+			{ form.kind !== 'aktivitet' && (
 			<section className="nbs-card">
 				<h2 className="nbs-h2">4. Checklista</h2>
 				{ form.checklist.map( ( c, i ) => (
@@ -521,6 +554,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 				) ) }
 				<Button small variant="ghost" onClick={ () => set( 'checklist', [ ...form.checklist, { _id: uuid(), text: '', plan_id: '' } ] ) }>+ Kontrollpunkt</Button>
 			</section>
+			) }
 
 			{ orig && plan && (
 				<section className="nbs-card">
@@ -542,6 +576,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 				</section>
 			) }
 
+			{ form.kind !== 'aktivitet' && (
 			<section className="nbs-card">
 				<h2 className="nbs-h2">5. Kupkontroll</h2>
 				<p className="nbs-muted">Uppgifterna som fylls i för varje samhälle. Typen <em>Skala</em> ger stora knappar (t.ex. styrka 1–5) och <em>Ja/nej</em> två knappar. Under <em>När besöket avslutas</em> kopplas fältet vidare: styrka, varroamätning (syns i Bihälsa och varroamodellen) eller behandling – ett ja/nej-fält som kryssas i registrerar behandlingen på samhället.</p>
@@ -549,6 +584,7 @@ function TemplateEditor( { id, templates, onSaved } ) {
 					<FieldDefs fields={ fields } setFields={ setFields } refLists={ refLists } allowMaps treatments={ treatList || [] } />
 				</div>
 			</section>
+			) }
 
 			{ orig && me.can.write && (
 				<div className="nbs-row-actions nbs-mt">

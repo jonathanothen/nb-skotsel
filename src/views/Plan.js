@@ -6,6 +6,7 @@ import { useRegister, today } from '../register';
 import { useLoad, Loading, ErrorBox, Button, Empty, Modal, useToast } from '../ui';
 import { useRecords, useModules, RecordForm, SubTabs, YearSelect, thisYear, saveRecord } from '../records';
 import { FieldsModal } from '../reg-ui';
+import { linkInfo } from '../links';
 
 /* ISO-veckor */
 export function mondayOf( year, week ) {
@@ -217,6 +218,15 @@ function WeekView( { plan, year, templates, catalog, onDone, onChanged } ) {
 			toast( e.message, 'error' );
 		}
 	};
+	const makeAllCards = async () => {
+		try {
+			const r = await api( 'plan/make-cards', { method: 'POST' } );
+			toast( `${ r.made } aktivitetskort skapades.` );
+			onChanged();
+		} catch ( e ) {
+			toast( e.message, 'error' );
+		}
+	};
 	const route = ( ids ) => {
 		try {
 			const cur = JSON.parse( localStorage.getItem( 'nbs_rutt' ) || '{}' ) || {};
@@ -236,6 +246,9 @@ function WeekView( { plan, year, templates, catalog, onDone, onChanged } ) {
 				<Button small variant="ghost" onClick={ () => setWeek( ( w ) => Math.min( 52, w + 1 ) ) } aria-label="Nästa vecka">→</Button>
 				{ year === thisYear() && week !== isoWeek() && <button type="button" className="nbs-link-btn" onClick={ () => setWeek( isoWeek() ) }>Denna vecka</button> }
 			</div>
+			{ me.can.manage && plan.some( ( p ) => p.kind === 'activity' && ! p.template_id ) && (
+				<p className="nbs-muted">{ plan.filter( ( p ) => p.kind === 'activity' && ! p.template_id ).length } aktiviteter saknar kort. <button type="button" className="nbs-link-btn" onClick={ makeAllCards }>Skapa ett aktivitetskort för varje</button></p>
+			) }
 			{ drag.length > 0 && <p className="nbs-muted">Drag nu: { drag.map( ( d ) => d.name + scopeText( reg, d.scope ) ).join( ', ' ) }</p> }
 			<ErrorBox error={ error } />
 			{ ! visits && ! error && <Loading /> }
@@ -252,10 +265,10 @@ function WeekView( { plan, year, templates, catalog, onDone, onChanged } ) {
 				};
 				const aps = t && t.kind !== 'aktivitet' ? scopeApiaries( reg, p.scope ) : [];
 				const planById = Object.fromEntries( plan.map( ( x ) => [ x.id, x ] ) );
-				const ticked = ( p.checked && p.checked[ year ] ) || [];
-				const tick = async ( index, checked ) => {
+				const ticked = ( ( p.checked && p.checked[ year ] ) || [] ).map( ( k ) => ( typeof k === 'number' ? '0.' + k : String( k ) ) );
+				const tick = async ( item, checked ) => {
 					try {
-						await api( `plan/${ p.id }/check`, { method: 'POST', body: { year, index, checked } } );
+						await api( `plan/${ p.id }/check`, { method: 'POST', body: { year, item, checked } } );
 						onChanged();
 					} catch ( e ) {
 						toast( e.message, 'error' );
@@ -288,16 +301,22 @@ function WeekView( { plan, year, templates, catalog, onDone, onChanged } ) {
 						) }
 						{ t && t.kind === 'aktivitet' && (
 							<>
-								<p><a href={ href( 'besok/kort/' + t.id ) }>Aktivitetskort: { t.name }</a> · { ticked.length } av { t.checklist.length } moment klara { year }</p>
-								{ t.checklist.map( ( c, i ) => {
-									const link = t.links && t.links[ i ] ? planById[ t.links[ i ] ] : null;
-									return (
-										<label key={ i } className="nbs-inline-check" style={ { display: 'block' } }>
-											<input type="checkbox" disabled={ ! me.can.write } checked={ ticked.includes( i ) } onChange={ ( e ) => tick( i, e.target.checked ) } /> { c }
-											{ link && <span className="nbs-muted"> → { link.name } (v. { link.week_start })</span> }
-										</label>
-									);
-								} ) }
+								<p><a href={ href( 'besok/kort/' + t.id ) }>Aktivitetskort: { t.name }</a> · { ticked.length } av { ( t.sections || [] ).reduce( ( n, s ) => n + s.items.length, 0 ) } punkter klara { year }</p>
+								{ ( t.sections || [] ).map( ( s, si ) => (
+									<div key={ si }>
+										{ s.title && <strong>{ s.title }</strong> }
+										{ s.items.map( ( it, ii ) => {
+											const key = si + '.' + ii;
+											const info = linkInfo( it.link, { reg, plan, templates } );
+											return (
+												<label key={ key } className="nbs-inline-check" style={ { display: 'block' } }>
+													<input type="checkbox" disabled={ ! me.can.write } checked={ ticked.includes( key ) } onChange={ ( e ) => tick( key, e.target.checked ) } /> { it.text }
+													{ info && <span className="nbs-muted"> → { info.kind }: { info.url ? <a href={ info.url }>{ info.text }</a> : info.text }</span> }
+												</label>
+											);
+										} ) }
+									</div>
+								) ) }
 							</>
 						) }
 						{ t && t.kind !== 'aktivitet' && (

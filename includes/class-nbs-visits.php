@@ -19,6 +19,8 @@ class NBS_Visits {
 
 	const STATUS = ['planned', 'ongoing', 'done'];
 	const PER    = ['colony', 'apiary', 'visit'];
+	/** Vad en kontrollpunkt kan länka till i övriga CMS:et: aktivitet, bigård, samhälle, skötselkort, lagerartikel. */
+	const LINK_TYPES = ['plan', 'apiary', 'colony', 'template', 'stock'];
 
 	private static function t($n) {
 		return NBS_DB::table($n);
@@ -64,6 +66,7 @@ class NBS_Visits {
 			'fields'      => NBS_Repo::unjson($r['fields']),
 			'kind'        => $r['kind'] ?? 'skotsel',
 			'links'       => (object) NBS_Repo::unjson($r['links'] ?? null),
+			'sections'    => self::cast_sections($r),
 			'treatment'   => self::card_treatments(NBS_Repo::unjson($r['treatment'] ?? null, null)),
 			'sort'        => (int) $r['sort'],
 			'archived'    => (bool) $r['archived'],
@@ -84,6 +87,56 @@ class NBS_Visits {
 		global $wpdb;
 		$r = NBS_Repo::is_uuid($id) ? $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::t('templates') . ' WHERE org_id = %s AND id = %s', $org_id, $id), ARRAY_A) : null;
 		return $r ? self::cast_template($r) : null;
+	}
+
+	/** En länk till en annan del av CMS:et, {type, id}, eller null. */
+	private static function clean_link($l) {
+		$l = (array) $l;
+		if (in_array($l['type'] ?? '', self::LINK_TYPES, true) && NBS_Repo::is_uuid($l['id'] ?? '')) {
+			return ['type' => $l['type'], 'id' => strtolower($l['id'])];
+		}
+		return null;
+	}
+
+	/** Checklistorna på ett aktivitetskort: [{title, items: [{text, link}]}]. */
+	private static function clean_sections($sections) {
+		$out = [];
+		foreach ((array) $sections as $s) {
+			$s     = (array) $s;
+			$items = [];
+			foreach ((array) ($s['items'] ?? []) as $it) {
+				$it   = (array) $it;
+				$text = sanitize_text_field($it['text'] ?? '');
+				if ($text !== '') {
+					$items[] = ['text' => $text, 'link' => self::clean_link($it['link'] ?? null)];
+				}
+			}
+			$title = sanitize_text_field($s['title'] ?? '');
+			if ($title !== '' || $items) {
+				$out[] = ['title' => $title, 'items' => $items];
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Checklistorna för API:et. Aktivitetskort från 1.7.0 hade en enda platt checklista med kopplingar till
+	 * aktiviteter; den visas som en lista med rubriken Checklista tills kortet sparas om.
+	 */
+	private static function cast_sections($r) {
+		$sections = NBS_Repo::unjson($r['sections'] ?? null);
+		if (!$sections && ($r['kind'] ?? 'skotsel') === 'aktivitet') {
+			$check = NBS_Repo::unjson($r['checklist'] ?? null);
+			$links = (array) NBS_Repo::unjson($r['links'] ?? null);
+			if ($check) {
+				$items = [];
+				foreach ($check as $i => $text) {
+					$items[] = ['text' => $text, 'link' => isset($links[$i]) ? ['type' => 'plan', 'id' => $links[$i]] : null];
+				}
+				$sections = [['title' => 'Checklista', 'items' => $items]];
+			}
+		}
+		return is_array($sections) ? array_values($sections) : [];
 	}
 
 	/** Kopplingar från kortets kontrollpunkter till aktiviteter i driftplanen: {"<index>": "<plan-id>"}. */
@@ -132,6 +185,7 @@ class NBS_Visits {
 			'material'    => NBS_Repo::json($mat),
 			'fields'      => NBS_Repo::json(NBS_Lists::sanitize_fields($d['fields'] ?? [])),
 			'kind'        => ($d['kind'] ?? '') === 'aktivitet' ? 'aktivitet' : 'skotsel',
+			'sections'    => NBS_Repo::json(self::clean_sections($d['sections'] ?? [])),
 			'links'       => NBS_Repo::json((object) self::clean_links($d['links'] ?? [], count($check))),
 			// Kortet är en behandling: varje kontrollerat samhälle får behandlingen i Bihälsa.
 			'treatment'   => ($ts = self::card_treatments($d['treatment'] ?? null)) ? NBS_Repo::json($ts) : null,

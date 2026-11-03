@@ -302,7 +302,15 @@ class NBS_Rest {
 			$type = $r->get_url_params()['type'];
 			$body = $r->get_json_params() ?: [];
 			return self::out(NBS_Ops::tx(function () use ($org, $type, $body) {
-				return $type === 'fill' ? NBS_Domain::fill_create($org(), $body) : NBS_Entities::save($org(), $type, $body);
+				$res = $type === 'fill' ? NBS_Domain::fill_create($org(), $body) : NBS_Entities::save($org(), $type, $body);
+				// Varje ny aktivitet får ett eget aktivitetskort (utom drag och det som uttryckligen inte ska ha något).
+				if ($type === 'plan' && !is_wp_error($res) && ($res['kind'] ?? '') === 'activity' && empty($res['template_id']) && empty($body['no_card'])) {
+					$made = NBS_Domain::plan_make_card($org(), $res['id']);
+					if (!is_wp_error($made)) {
+						$res = $made['plan'];
+					}
+				}
+				return $res;
 			}));
 		}, 'can_write');
 		self::route("/r/(?P<type>$generic)/(?P<id>[0-9a-f-]{36})", 'PUT', function (WP_REST_Request $r) use ($org) {
@@ -342,8 +350,14 @@ class NBS_Rest {
 			return self::out(NBS_Domain::plan_done($org(), $r->get_url_params()['id'], (int) $r['year'], !empty($r['done'])));
 		}, 'can_write');
 		self::route('/plan/(?P<id>[0-9a-f-]{36})/check', 'POST', function (WP_REST_Request $r) use ($org) {
-			return self::out(NBS_Domain::plan_check($org(), $r->get_url_params()['id'], (int) $r['year'], (int) $r['index'], !empty($r['checked'])));
+			$item = isset($r['item']) ? (string) $r['item'] : '0.' . (int) $r['index'];
+			return self::out(NBS_Domain::plan_check($org(), $r->get_url_params()['id'], (int) $r['year'], $item, !empty($r['checked'])));
 		}, 'can_write');
+		self::route('/plan/make-cards', 'POST', function () use ($org) {
+			return self::out(NBS_Ops::tx(function () use ($org) {
+				return NBS_Domain::plan_make_all_cards($org());
+			}));
+		}, 'can_manage');
 		self::route('/plan/(?P<id>[0-9a-f-]{36})/make-card', 'POST', function (WP_REST_Request $r) use ($org) {
 			return self::out(NBS_Domain::plan_make_card($org(), $r->get_url_params()['id']));
 		}, 'can_write');
