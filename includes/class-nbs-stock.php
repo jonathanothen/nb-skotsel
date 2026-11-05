@@ -227,7 +227,24 @@ class NBS_Stock {
 		return ['batch_id' => $batch, 'tx' => self::tx_list($org_id, ['batch_id' => $batch])];
 	}
 
+	/**
+	 * Samma boknings-id skickat en gång till (ett omförsök efter ett avbrutet nät) ger det som redan bokades i stället för en
+	 * dubbelbokning. Klienten anger bokningens id som `id`; utan id (eller ett nytt) bokas som vanligt.
+	 */
+	private static function duplicate($org_id, $d) {
+		$id = $d['id'] ?? null;
+		if (!is_string($id) || !NBS_Repo::is_uuid($id)) {
+			return null;
+		}
+		$id = strtolower($id);
+		$tx = self::tx_list($org_id, ['batch_id' => $id]);
+		return $tx ? ['batch_id' => $id, 'tx' => $tx, 'duplicate' => true] : null;
+	}
+
 	public static function purchase($org_id, $d) {
+		if ($dup = self::duplicate($org_id, $d)) {
+			return $dup;
+		}
 		$p = self::prep($org_id, $d);
 		if (is_wp_error($p)) {
 			return $p;
@@ -243,6 +260,9 @@ class NBS_Stock {
 	}
 
 	public static function move($org_id, $d) {
+		if ($dup = self::duplicate($org_id, $d)) {
+			return $dup;
+		}
 		$p = self::prep($org_id, $d);
 		if (is_wp_error($p)) {
 			return $p;
@@ -263,6 +283,9 @@ class NBS_Stock {
 
 	/** Förbrukning (bokas på samhället) eller kassering. */
 	public static function consume($org_id, $d) {
+		if ($dup = self::duplicate($org_id, $d)) {
+			return $dup;
+		}
 		$p = self::prep($org_id, $d);
 		if (is_wp_error($p)) {
 			return $p;
@@ -285,6 +308,9 @@ class NBS_Stock {
 	 * samhälles kupa, t.ex. skattlådor).
 	 */
 	public static function distribute($org_id, $d) {
+		if ($dup = self::duplicate($org_id, $d)) {
+			return $dup;
+		}
 		$p = self::prep($org_id, $d);
 		if (is_wp_error($p)) {
 			return $p;
@@ -336,6 +362,9 @@ class NBS_Stock {
 
 	/** Inventering: counts = { artikel-id: räknad mängd } för en plats. */
 	public static function count($org_id, $d) {
+		if ($dup = self::duplicate($org_id, $d)) {
+			return $dup;
+		}
 		$loc = self::loc($org_id, $d['loc'] ?? null);
 		if (is_wp_error($loc)) {
 			return $loc;
