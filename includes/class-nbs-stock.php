@@ -281,6 +281,46 @@ class NBS_Stock {
 		return is_wp_error($r) ? $r : self::done($org_id, $batch, 'flytt');
 	}
 
+	/**
+	 * Flyttar flera artiklar mellan två platser i en enda bokning (en batch, som går att ångra i sin helhet).
+	 * Body: { id, from: {type, id}, to: {type, id}, date, note, items: [{ item_id, qty }] }. Rader utan giltig artikel eller
+	 * mängd hoppas över; saknas alla ges ett fel. Ett omförsök med samma id ger den befintliga bokningen.
+	 */
+	public static function moves($org_id, $d) {
+		if ($dup = self::duplicate($org_id, $d)) {
+			return $dup;
+		}
+		$from = self::loc($org_id, $d['from'] ?? null);
+		$to   = self::loc($org_id, $d['to'] ?? null);
+		if (is_wp_error($from) || is_wp_error($to)) {
+			return is_wp_error($from) ? $from : $to;
+		}
+		if ($from === $to) {
+			return new WP_Error('nbs_loc', 'Från och till är samma plats.', ['status' => 400]);
+		}
+		$date  = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($d['date'] ?? '')) ? $d['date'] : current_time('Y-m-d');
+		$note  = sanitize_textarea_field((string) ($d['note'] ?? ''));
+		$batch = NBS_Repo::id($d['id'] ?? null);
+		$n     = 0;
+		foreach ((array) ($d['items'] ?? []) as $row) {
+			$row  = (array) $row;
+			$item = self::item($org_id, $row['item_id'] ?? '');
+			$qty  = str_replace(',', '.', (string) ($row['qty'] ?? ''));
+			if (!$item || !is_numeric($qty) || (float) $qty <= 0) {
+				continue;
+			}
+			$r = self::post($org_id, $batch, $date, 'flytt', $item, (float) $qty, $from, $to, ['note' => $note]);
+			if (is_wp_error($r)) {
+				return $r;
+			}
+			$n++;
+		}
+		if (!$n) {
+			return new WP_Error('nbs_items', 'Ange minst en artikel och en mängd.', ['status' => 400]);
+		}
+		return self::done($org_id, $batch, 'flytt');
+	}
+
 	/** Förbrukning (bokas på samhället) eller kassering. */
 	public static function consume($org_id, $d) {
 		if ($dup = self::duplicate($org_id, $d)) {

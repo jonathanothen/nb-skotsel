@@ -222,7 +222,7 @@ class NBS_Rest {
 		self::route('/stock/tx', 'GET', function (WP_REST_Request $r) use ($org) {
 			return NBS_Stock::tx_list($org(), $r->get_query_params(), (int) ($r['limit'] ?: 300));
 		});
-		foreach (['purchase', 'move', 'consume', 'distribute', 'count'] as $action) {
+		foreach (['purchase', 'move', 'moves', 'consume', 'distribute', 'count'] as $action) {
 			self::route('/stock/' . $action, 'POST', function (WP_REST_Request $r) use ($org, $action) {
 				$body = $r->get_json_params() ?: [];
 				return self::out(NBS_Ops::tx(function () use ($org, $action, $body) {
