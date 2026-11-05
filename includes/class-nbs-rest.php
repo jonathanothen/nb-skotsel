@@ -353,6 +353,13 @@ class NBS_Rest {
 			$item = isset($r['item']) ? (string) $r['item'] : '0.' . (int) $r['index'];
 			return self::out(NBS_Domain::plan_check($org(), $r->get_url_params()['id'], (int) $r['year'], $item, !empty($r['checked'])));
 		}, 'can_write');
+		self::route('/hives/(?P<id>[0-9a-f-]{36})/dismantle', 'POST', function (WP_REST_Request $r) use ($org) {
+			$body = $r->get_json_params() ?: [];
+			$id   = $r->get_url_params()['id'];
+			return self::out(NBS_Ops::tx(function () use ($org, $id, $body) {
+				return NBS_Hives::dismantle($org(), $id, $body);
+			}));
+		}, 'can_write');
 		self::route('/plan/make-cards', 'POST', function () use ($org) {
 			return self::out(NBS_Ops::tx(function () use ($org) {
 				return NBS_Domain::plan_make_all_cards($org());

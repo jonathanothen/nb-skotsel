@@ -20,6 +20,60 @@ class NBS_Hives {
 
 	const KUPDEL = ['Kupdel', 'Ram och vax'];
 
+	/**
+	 * Avvecklar en kupa (till exempel en död kupa som tas hem): alla delar som är bokade på kupan flyttas till en plats i en
+	 * enda bokning (den kan ångras i sin helhet), samhället i kupan avslutas om `colony_status` (dod eller sald) anges, och
+	 * kupan sätts som inte aktiv. Body: { id, to: {type, id}, colony_status, queen_status, date, note }.
+	 * Vill man bara ta loss några delar flyttar man dem med POST /stock/moves med kupan som `from`.
+	 */
+	public static function dismantle($org_id, $hive_id, $d) {
+		$hive = NBS_Entities::get($org_id, 'hive', $hive_id);
+		if (!$hive) {
+			return new WP_Error('nbs_404', 'Kupan finns inte.', ['status' => 404]);
+		}
+		$date = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($d['date'] ?? '')) ? $d['date'] : current_time('Y-m-d');
+		$note = sanitize_textarea_field((string) ($d['note'] ?? ''));
+		$held = NBS_Stock::held_at($org_id, ['hive', $hive_id]);
+		$to   = null;
+		if ($held) {
+			$to = NBS_Stock::loc($org_id, $d['to'] ?? null);
+			if (is_wp_error($to)) {
+				return new WP_Error('nbs_loc', 'Välj vart delarna ska ta vägen.', ['status' => 400]);
+			}
+		}
+		$colony = NBS_Stock::colony_in_hive($org_id, $hive_id);
+		$status = $d['colony_status'] ?? '';
+		if ($colony && !in_array($status, ['dod', 'sald'], true)) {
+			return new WP_Error('nbs_status', 'Kupan har ett aktivt samhälle. Välj om det är dött eller sålt, eller avsluta samhället först.', ['status' => 400]);
+		}
+		if ($held) {
+			$items = [];
+			foreach ($held as $item_id => $qty) {
+				$items[] = ['item_id' => $item_id, 'qty' => $qty];
+			}
+			$r = NBS_Stock::moves($org_id, [
+				'id'    => $d['id'] ?? null,
+				'from'  => ['type' => 'hive', 'id' => $hive_id],
+				'to'    => ['type' => $to[0], 'id' => $to[1]],
+				'date'  => $date,
+				'note'  => $note !== '' ? $note : 'Kupa ' . $hive['label'] . ' avvecklad',
+				'items' => $items,
+			]);
+			if (is_wp_error($r)) {
+				return $r;
+			}
+		}
+		if ($colony) {
+			$r = NBS_Ops::close($org_id, $colony['id'], $status, (string) ($d['queen_status'] ?? ''), $date, $note);
+			if (is_wp_error($r)) {
+				return $r;
+			}
+		}
+		NBS_Entities::patch($org_id, 'hive', $hive_id, ['active' => 0]);
+		NBS_Events::add($org_id, 'anteckning', ['id' => null, 'colony_id' => $colony ? $colony['id'] : null, 'queen_id' => null, 'apiary_id' => $hive['apiary_id'] ?? null], $date, 'Kupa ' . $hive['label'] . ' avvecklad' . ($note !== '' ? ': ' . $note : ''));
+		return ['hive' => NBS_Entities::get($org_id, 'hive', $hive_id), 'moved' => count($held), 'closed' => $colony ? $colony['id'] : null];
+	}
+
 	// ------------------------------------------------------------ Kuptyper
 
 	public static function save_type($org_id, $d, $id = null) {

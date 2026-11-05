@@ -92,6 +92,17 @@ class NBS_Stock {
 		return $row ?: null;
 	}
 
+	/** Allt som ligger bokat på en plats: [artikel => mängd], bara positiva saldon. */
+	public static function held_at($org_id, $loc) {
+		global $wpdb;
+		$rows = $wpdb->get_results($wpdb->prepare('SELECT item_id, qty FROM ' . self::t('stock') . ' WHERE org_id = %s AND loc_type = %s AND loc_id = %s AND qty > %f', $org_id, $loc[0], $loc[1], self::EPS), ARRAY_A);
+		$out  = [];
+		foreach ((array) $rows as $r) {
+			$out[$r['item_id']] = (float) $r['qty'];
+		}
+		return $out;
+	}
+
 	public static function balance($org_id, $item_id, $loc, $lock = false) {
 		global $wpdb;
 		$sql = $wpdb->prepare('SELECT qty FROM ' . self::t('stock') . ' WHERE org_id = %s AND item_id = %s AND loc_type = %s AND loc_id = %s', $org_id, $item_id, $loc[0], $loc[1]);
