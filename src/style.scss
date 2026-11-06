@@ -747,3 +747,15 @@ ol.nbs-sheet-boxes { counter-reset: none; li::before { content: '□ '; } }
 .nbs-card-treat { border: 1px solid $line; border-radius: 10px; padding: 10px 12px 2px; margin-bottom: 10px; background: #fff; }
 .nbs-ok-text { color: $green; font-weight: 600; }
 .nbs-import { margin-top: 20px; padding-top: 12px; border-top: 1px solid $line; }
+
+/* ---- Kupvågar */
+.nbs-subtabs button.nbs-subtab { flex: none; white-space: nowrap; padding: 8px 14px; background: none; border: 0; border-bottom: 3px solid transparent; font: inherit; font-weight: 600; color: $text; cursor: pointer; margin-bottom: -1px; &.is-active { color: $brown; border-color: $honey; } }
+.nbs-dev-card { display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: inherit; &:hover { border-color: $honey; } }
+.nbs-dev-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; strong { font-size: 16px; color: $brown; } }
+.nbs-dev-weight { font-family: 'Fraunces', Georgia, serif; font-size: 30px; color: $brown; line-height: 1.1; margin: 6px 0 2px; }
+.nbs-dev-line { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+.nbs-dev-alert { margin-top: 6px; padding: 6px 10px; border-radius: 8px; background: #F8E0DC; color: #7A1F17; font-size: 13px; font-weight: 600; &.is-big { font-size: 14px; margin-bottom: 8px; } }
+.nbs-dev-cards { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.nbs-dev-chart { margin-top: 12px; }
+.nbs-linechart { margin: 0; svg { width: 100%; height: auto; display: block; } }
+.nbs-linechart-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; margin-top: 6px; span { display: inline-flex; align-items: center; gap: 6px; } i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; } }

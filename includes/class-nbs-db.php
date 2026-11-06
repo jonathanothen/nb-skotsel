@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
  */
 class NBS_DB {
 
-	const DB_VERSION = '14';
+	const DB_VERSION = '15';
 
 	public static function table($name) {
 		global $wpdb;
@@ -272,6 +272,65 @@ $cols			data longtext NULL,
 		self::ensure_column($tpl, 'kind', "varchar(12) NOT NULL DEFAULT 'skotsel'");
 		self::ensure_column($tpl, 'links', 'longtext NULL');
 		self::ensure_column($tpl, 'sections', 'longtext NULL');
+
+		// ---- Kupvågar: enheter, mätvärden och delning per våg.
+		$dev = self::table('devices');
+		dbDelta("CREATE TABLE $dev (
+			id varchar(24) NOT NULL,
+			org_id char(36) NULL,
+			name varchar(120) NULL,
+			hive_id char(36) NULL,
+			apiary_id char(36) NULL,
+			status varchar(12) NOT NULL DEFAULT 'oclaimad',
+			pubkey text NULL,
+			claim_hash varchar(255) NULL,
+			fw varchar(24) NULL,
+			hw varchar(8) NULL,
+			imei varchar(20) NULL,
+			iccid varchar(24) NULL,
+			cal longtext NULL,
+			last_seq bigint(20) NOT NULL DEFAULT 0,
+			last_seen datetime NULL,
+			battery_v decimal(4,2) NULL,
+			clock_skew int(11) NULL,
+			interval_s int(11) NOT NULL DEFAULT 3600,
+			dummy tinyint(1) NOT NULL DEFAULT 0,
+			claimed_at datetime NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY org_id (org_id),
+			KEY hive (org_id,hive_id)
+		) $c;");
+
+		$rd = self::table('readings');
+		dbDelta("CREATE TABLE $rd (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			device_id varchar(24) NOT NULL,
+			ts datetime NOT NULL,
+			raw int(11) NULL,
+			ti float NULL,
+			t_out float NULL,
+			t_batt float NULL,
+			rh float NULL,
+			rh_out float NULL,
+			snd_rms float NULL,
+			snd_dom smallint(6) NULL,
+			snd_bands varchar(120) NULL,
+			vb float NULL,
+			rssi smallint(6) NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY dev_ts (device_id,ts)
+		) $c;");
+
+		$shr = self::table('device_shares');
+		dbDelta("CREATE TABLE $shr (
+			device_id varchar(24) NOT NULL,
+			user_id bigint(20) unsigned NOT NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (device_id,user_id),
+			KEY user_id (user_id)
+		) $c;");
 
 		update_option('nbs_db_version', self::DB_VERSION);
 	}

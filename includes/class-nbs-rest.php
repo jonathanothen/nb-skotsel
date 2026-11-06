@@ -19,6 +19,11 @@ class NBS_Rest {
 		return self::can_read() && NBS_Auth::can_write();
 	}
 
+	/** Tillverkningssteget: bara WordPress-administratör. */
+	public static function can_provision() {
+		return self::can_read() && current_user_can('manage_options');
+	}
+
 	public static function can_manage() {
 		return self::can_read() && NBS_Auth::can_manage();
 	}
@@ -484,6 +489,54 @@ class NBS_Rest {
 			NBS_Repo::audit('member', $org(), 'delete', ['user_id' => $uid]);
 			return ['ok' => true];
 		}, 'can_manage');
+
+		// ---- Kupvågar
+		self::route('/devices', 'GET', function () {
+			return NBS_Devices::listing();
+		});
+		self::route('/devices/claim', 'POST', function (WP_REST_Request $r) {
+			return self::out(NBS_Devices::claim((string) $r['device_id'], (string) $r['claim_code']));
+		}, 'can_write');
+		self::route('/devices/demo', 'POST', function () {
+			return self::out(NBS_Devices::demo_create());
+		}, 'can_manage');
+		self::route('/devices/demo', 'DELETE', function () {
+			return self::out(NBS_Devices::demo_delete());
+		}, 'can_manage');
+		self::route('/devices/provision', 'POST', function (WP_REST_Request $r) {
+			return self::out(NBS_Devices::provision((string) $r['device_id'], (string) $r['pubkey'], (string) $r['hw'], (string) $r['fw']));
+		}, 'can_provision');
+		self::route('/devices/(?P<id>[A-Za-z0-9-]{8,24})', 'GET', function (WP_REST_Request $r) {
+			return self::out(NBS_Devices::one($r->get_url_params()['id']));
+		});
+		self::route('/devices/(?P<id>[A-Za-z0-9-]{8,24})', 'PUT', function (WP_REST_Request $r) {
+			return self::out(NBS_Devices::update($r->get_url_params()['id'], $r->get_json_params() ?: []));
+		}, 'can_write');
+		self::route('/devices/(?P<id>[A-Za-z0-9-]{8,24})/readings', 'GET', function (WP_REST_Request $r) {
+			return self::out(NBS_Devices::readings($r->get_url_params()['id'], $r['from'], $r['to'], (string) $r['res']));
+		});
+		self::route('/devices/(?P<id>[A-Za-z0-9-]{8,24})/calibrate', 'POST', function (WP_REST_Request $r) {
+			return self::out(NBS_Devices::calibrate($r->get_url_params()['id'], (string) $r['steg'], $r['kg']));
+		}, 'can_write');
+		self::route('/devices/(?P<id>[A-Za-z0-9-]{8,24})/release', 'POST', function (WP_REST_Request $r) {
+			return self::out(NBS_Devices::release($r->get_url_params()['id']));
+		}, 'can_manage');
+		self::route('/devices/(?P<id>[A-Za-z0-9-]{8,24})/share', 'POST', function (WP_REST_Request $r) {
+			return self::out(NBS_Devices::share($r->get_url_params()['id'], (string) $r['email']));
+		}, 'can_write');
+		self::route('/devices/(?P<id>[A-Za-z0-9-]{8,24})/share/(?P<user>\d+)', 'DELETE', function (WP_REST_Request $r) {
+			$p = $r->get_url_params();
+			return self::out(NBS_Devices::unshare($p['id'], $p['user']));
+		});
+		self::route('/hives/(?P<id>[0-9a-f-]{36})/readings', 'GET', function (WP_REST_Request $r) {
+			return self::out(NBS_Devices::readings_for_hive($r->get_url_params()['id'], $r['from'], $r['to'], (string) $r['res']));
+		});
+		// Enheten är ingen WordPress-användare: autentiseringen sker med signatur inne i ingest().
+		register_rest_route(self::NS, '/ingest', [
+			'methods'             => 'POST',
+			'callback'            => ['NBS_Devices', 'ingest'],
+			'permission_callback' => '__return_true',
+		]);
 
 		// ---- Export av all data
 		self::route('/export', 'GET', function () use ($org) {
